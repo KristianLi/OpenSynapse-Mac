@@ -227,12 +227,27 @@ public final class OpenRazerCatalog: Sendable {
 
     /// Inside the .app the resource bundle lives in Contents/Resources (where code signing
     /// expects it); SwiftPM's own accessor only looks next to the executable or in .build.
+    ///
+    /// Release builds avoid `Bundle.module`: its generated accessor embeds the absolute build
+    /// path (and with it the builder's user name) into the shipped binary.
     private static var resourceBundle: Bundle {
-        if let url = Bundle.main.resourceURL?.appendingPathComponent("OpenSynapseMac_RazerCore.bundle"),
-           let bundle = Bundle(url: url) {
-            return bundle
+        let name = "OpenSynapseMac_RazerCore.bundle"
+        let directories = [
+            Bundle.main.resourceURL,
+            Bundle.main.bundleURL,
+            Bundle.main.executableURL?.deletingLastPathComponent(),
+            Bundle(for: OpenRazerCatalog.self).bundleURL.deletingLastPathComponent(),
+        ]
+        for directory in directories.compactMap({ $0 }) {
+            if let bundle = Bundle(url: directory.appendingPathComponent(name)) {
+                return bundle
+            }
         }
+        #if DEBUG
         return Bundle.module
+        #else
+        return Bundle.main
+        #endif
     }
 
     static func loadBuiltIn() throws -> OpenRazerCatalog {
