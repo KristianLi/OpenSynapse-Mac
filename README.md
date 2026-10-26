@@ -1,89 +1,116 @@
 # OpenSynapse for Mac
 
-[OpenSynapse](https://github.com/A1mAssist/OpenSynapse)（Windows）的 macOS 移植版：不装雷蛇官方软件，直接在 Mac 上控制雷蛇外设。原生 SwiftUI 窗口应用，附带菜单栏电量显示。
+English · [简体中文](README.zh-CN.md)
 
-> 非官方项目，与 Razer Inc. 无关联。
+A macOS port of [OpenSynapse](https://github.com/A1mAssist/OpenSynapse) (Windows): control Razer peripherals on a Mac without Razer's own software. Native SwiftUI window app with a menu bar battery readout.
 
-## 支持范围
+> Unofficial project, not affiliated with Razer Inc.
 
-协议实现逐项移植自 OpenSynapse 源码（上游提交 `117af46`），设备目录与上游完全一致：
+## Project status: early, tested on few devices
 
-| 设备族 | 数量 | 可控制项 |
+The protocol code covers the full OpenSynapse device list, but **only the devices in the first table have been tried on real hardware**. Everything else is implemented from the upstream code and passes unit tests against a simulated device, but has never been run against the real product on macOS. Expect some of those to misbehave, and please [report what you find](#help-test-a-device).
+
+### Verified on real hardware
+
+Writes were tested as change → read back → restore the original value.
+
+| Device | Reads verified | Writes verified |
 |---|---|---|
-| OpenRazer 目录（鼠标 / 键盘 / 笔记本 / 配件） | 259 款 + 22 款本地扩展 | 电量、回报率（含 8K）、DPI、DPI 档位、休眠、低电量提醒、各灯区灯效与亮度、整键盘自定义颜色、滚轮模式/加速/智能滚轮、按键优化、HyperPolling 指示灯 |
-| 协议 25 键盘（Huntsman V3、Pro Type 等） | 23 款 | 固件/序列号、电量、游戏模式、回报率、Chroma 灯效与亮度 |
-| 协议 25 音频（Kraken、BlackShark V2、Barracuda、Nari、Nommo、Seiren 等） | 45 款 | 均衡器预设与 10/8 段、低音、麦克风静音/音量/降噪、音源、主动降噪 |
-| Chroma 0x10 灯光配件（Aether 灯、底座、支架、ARGB 控制器等） | 40 款 | 灯效、颜色、亮度、电量 |
-| Kraken 灯光 | 7 款 | 关闭、静态、光谱、单/双/三色呼吸、自定义 |
-| BlackShark V3 Pro | 1 款 | 电量、充电、侧音、THX、降噪模式、游戏/聊天平衡 |
-| Kraken V4 Pro 耳机（`0567`，本移植新增） | 1 款 | 电量、侧音、游戏/聊天平衡、降噪状态（只读）、9 灯 RGB |
-| HID LampArray 灯光（如 Kraken V4 Pro 控制终端 `0568`） | 自动识别 | 颜色、亮度、关灯、恢复设备自带灯效 |
+| Basilisk V4 Pro, wired (`1532:00E2`) | battery, charging, firmware, serial, DPI, DPI stages, polling rate (8000 Hz), sleep timer, low-battery warning, logo/wheel brightness | DPI, polling rate, logo/wheel brightness, DPI stage table |
+| Basilisk V3 (`1532:0099`) | firmware, serial, DPI, DPI stages, polling rate, brightness, scroll mode | notched / free-spin scroll mode |
+| Kraken V4 Pro headset, USB cable (`1532:0567`) | battery, sidetone, noise-cancelling mode, game/chat balance | sidetone, game/chat balance, HID LampArray lighting |
+| Kraken V4 Pro via its control hub, 2.4 GHz (`1532:0568`) | battery, charging, sidetone, noise-cancelling mode, game/chat balance | sidetone, game/chat balance, HID LampArray lighting (tested over USB) |
 
-和上游一样，页面只显示该型号目录里声明、并且接口探测确认可用的控制；写入操作在可读回的设备上会“先读 → 写 → 回读校验 → 失败则恢复”。
+Mouse lighting effects were also confirmed by hand from the app with both Basilisk models connected.
 
-**没有移植**（依赖 Windows 或雷蛇专有组件）：Blade 笔记本的风扇/性能/显卡切换、THX 音频原生组件、Windows 滤镜驱动、宏录制、Chroma REST、Philips Hue、蓝牙 BLE 协议 30。
+Findings from these tests, already handled in the code:
 
-## 实机验证
+- The Basilisk V4 Pro rejects the legacy polling-rate command it inherits from its catalog sibling; the app detects this and switches to the HyperPolling command.
+- The Basilisk V4 Pro's notched / free-spin mode cannot be set from software (the firmware refuses both read and write); only the button behind the wheel changes it.
+- The Kraken V4 Pro answers on link byte `0x00` over USB, and the control hub relays to the headset on `0x80` over 2.4 GHz.
+- The Kraken V4 Pro acknowledges THX writes without applying them, so THX is hidden; noise-cancelling level is not reported, so noise cancelling is read-only.
 
-以下设备已在真机上验证（写入均为“改 → 回读 → 恢复原值”）：
+### Implemented but untested
 
-| 设备 | 已验证 |
-|---|---|
-| Basilisk V4 Pro（有线 `00E2`） | 电量、DPI、DPI 档位、8000 Hz 回报率、休眠、低电量提醒、滚轮/标志亮度、灯效 |
-| Basilisk V3（`0099`） | DPI、回报率、灯光、段落 / 无极滚轮切换 |
-| Kraken V4 Pro 耳机（`0567`） | 电量、侧音、游戏/聊天平衡、LampArray 灯光 |
-| Kraken V4 Pro 控制终端（`0568`） | LampArray 灯光 |
+| Family | Models | Controls |
+|---|---|---|
+| OpenRazer catalog (mice / keyboards / laptops / accessories) | 259 + 22 local additions | battery, polling rate (up to 8K), DPI, DPI stages, sleep timer, low-battery warning, per-zone effects and brightness, whole-keyboard colour, scroll mode / acceleration / Smart Reel, keyswitch optimisation, HyperPolling indicator |
+| Protocol 25 keyboards (Huntsman V3, Pro Type, …) | 23 | firmware/serial, battery, game mode, polling rate, Chroma effect and brightness |
+| Protocol 25 audio (Kraken, BlackShark V2, Barracuda, Nari, Nommo, Seiren, …) | 45 | EQ preset and 10/8 bands, bass, mic mute/volume/noise suppression, audio source, ANC |
+| Chroma 0x10 lighting accessories (Aether lamps, docks, stands, ARGB controllers, …) | 40 | effect, colour, brightness, battery |
+| Kraken lighting (older models) | 7 | off, static, spectrum, 1/2/3-colour breathing, custom |
+| BlackShark V3 Pro | 1 | battery, charging, sidetone, THX, ANC, game/chat balance |
+| HID LampArray lighting | auto-detected | colour, brightness, off, restore the device's own effect |
 
-实机测试中发现并修正的问题：Basilisk V4 Pro 继承的旧式回报率命令会被拒绝（现自动改用 HyperPolling 命令）；V4 Pro 的段落/无极切换只能用物理按键；Kraken V4 Pro 有线连接时要用链路字节 `0x00`。
+Not tested yet even on the verified devices: wireless mice through their 2.4 GHz receiver, the USB control-transfer fallback (all tests ran over HID), and keyboards that need the Input Monitoring permission.
 
-## 和 Windows 版的差异
+Like upstream, a page only shows controls that the device's catalog entry declares and that answer on the resolved interface. Controls whose read the firmware refuses are hidden.
 
-- **通信方式**：默认用 IOKit 的 HID 特性报告（与 Windows 版相同）。如果打不开 HID 接口（键盘接口需要“输入监控”权限），会自动改用 USB 控制传输，也就是 OpenRazer 在 Linux 上用的通道，不需要额外权限。可在“设置”中固定某一种方式。
-- 报告格式相同，只是 macOS 把报告 ID 0 单独传递，所以字节下标比上游 C# 代码少 1。
+**Not ported** (depend on Windows or Razer components): Blade laptop fan/performance/GPU switching, the THX native audio component, the Windows filter driver, macro recording, Chroma REST, Philips Hue, Bluetooth LE protocol 30.
 
-## 构建与运行
+## Differences from the Windows version
 
-需要 macOS 14+ 和 Swift 6（Xcode 或 Command Line Tools 均可）。
+- **Transport:** IOKit HID feature reports by default, the same reports as the Windows version. If a HID interface cannot be opened (keyboard interfaces need the Input Monitoring permission), the app falls back to USB control transfers, the channel OpenRazer uses on Linux, which needs no permission. Settings can pin either path.
+- The report format is the same; macOS passes report ID 0 separately, so byte indexes are one lower than in the upstream C# code.
+- Additions not in upstream: Kraken V4 Pro and its control hub, HID LampArray lighting, HyperPolling detection for 8 kHz mice whose catalog entry uses the legacy command.
+
+## Build and run
+
+Requires macOS 14+ and Swift 6 (Xcode or the Command Line Tools).
 
 ```bash
-scripts/build-app.sh          # 生成 dist/OpenSynapse.app（ad-hoc 签名）
-open dist/OpenSynapse.app
+scripts/build-app.sh
 ```
 
-开发时也可以直接 `swift run OpenSynapseMac`。
+This builds `dist/OpenSynapse.app` with an ad-hoc signature. During development you can also run `swift run OpenSynapseMac`.
 
-运行测试（只装了 Command Line Tools 时需要指定 Testing 框架路径）：
+Run the tests (with only the Command Line Tools installed, point Swift at the Testing framework):
 
 ```bash
 F=/Library/Developer/CommandLineTools/Library/Developer/Frameworks
 swift test -Xswiftc -F$F -Xlinker -F$F -Xlinker -rpath -Xlinker $F
 ```
 
-测试移植了上游的协议不变量（DPI/回报率字节、灯效协议族路由、Kraken/BlackShark 帧格式等），并对目录里每个设备的每个灯光控制项都实际构造并发送一次请求（发给模拟设备）。
+The tests port the upstream protocol invariants (DPI and polling bytes, lighting builder routing, Kraken and BlackShark frames) and build and send every lighting control of every catalog device to a simulated device.
 
-## 使用提示
+## Usage notes
 
-- 应用首次打开时由于是 ad-hoc 签名，可能需要右键 →“打开”。
-- 请先退出其他雷蛇控制软件（如 Razer macOS、Razer Synapse），避免两个程序同时操作同一设备。
-- 没有设备时，可在“设置”里打开**演示模式**，用模拟设备预览所有页面。
-- “诊断日志”页记录每条发出的命令和设备回复，也列出所有雷蛇 HID 接口，适配新设备时很有用。
-- `OpenSynapse --snapshot <目录>` 会用演示设备把每个页面渲染成 PNG 后退出（加 `--real` 用真实设备，只读）。
-- `OpenSynapse --probe` 只读扫描所有设备并打印完整诊断日志；加 `--write-test` 做可恢复的写入往返测试，加 `--lamp-test` 让 LampArray 灯光变红 3 秒后恢复。
+- Because of the ad-hoc signature, the first launch may need right-click → Open.
+- Quit other Razer control software (Razer Synapse, Razer macOS) so two programs do not drive the same device at once.
+- With no device attached, turn on **demo mode** in Settings to preview every page with simulated devices.
+- The **Diagnostics** page logs every command sent and every reply, and lists all Razer HID interfaces.
 
-## 项目结构
+## Help test a device
 
-```
-Sources/RazerUSB/        C：USB 控制传输（IOUSBDeviceInterface）
-Sources/RazerCore/       协议、设备目录、能力解析、IOKit HID 传输、模拟设备
-  Resources/*.json       OpenRazer 设备目录（来自 OpenSynapse）
-Sources/OpenSynapseMac/  SwiftUI 应用
-Tests/RazerCoreTests/    协议测试
+If you own a device from the untested list, a read-only report helps a lot:
+
+```bash
+dist/OpenSynapse.app/Contents/MacOS/OpenSynapse --probe
 ```
 
-## 许可
+It scans the attached Razer devices, reads their state with GET commands only, prints the diagnostic log and exits; nothing is written. Open an issue with the output and the model name. **Remove the serial numbers from the output before posting.**
 
-本项目源码采用 [MIT 许可](LICENSE)，并保留 OpenSynapse 原作者的版权声明（协议层是其 C# 代码的 Swift 移植）。
+Two more options exist for checking writes, both of which restore the original values:
 
-`Sources/RazerCore/Resources/` 下的设备目录数据派生自 [OpenRazer](https://github.com/openrazer/openrazer)，继续遵循 GPL-2.0-or-later。详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+- `--probe --write-test` changes DPI, polling rate and brightness, reads them back and restores them.
+- `--probe --lamp-test` turns HID LampArray lights red for 3 seconds, then returns them to the device's own effect.
 
-本项目与 Razer Inc. 无关联，不包含任何雷蛇软件、驱动或固件。Razer 及相关产品名称为其各自所有者的商标，仅用于标明兼容的硬件。
+`--snapshot <dir>` renders every page into PNG files using the demo devices (add `--real` for the attached devices, read-only).
+
+## Project layout
+
+```
+Sources/RazerUSB/        C: USB control transfers (IOUSBDeviceInterface)
+Sources/RazerCore/       protocols, device catalog, capability resolution, IOKit transport, simulator
+  Resources/*.json       OpenRazer device catalog (as packaged by OpenSynapse)
+Sources/OpenSynapseMac/  SwiftUI app
+Tests/RazerCoreTests/    protocol tests
+```
+
+## License
+
+The source code is under the [MIT License](LICENSE) and keeps the OpenSynapse copyright notice, since the protocol layer is a Swift translation of its C# code.
+
+The device catalog data in `Sources/RazerCore/Resources/` derives from [OpenRazer](https://github.com/openrazer/openrazer) and stays under GPL-2.0-or-later. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+This project is not affiliated with Razer Inc. and contains no Razer software, drivers or firmware. Razer and related product names are trademarks of their respective owners and are used only to identify compatible hardware.
