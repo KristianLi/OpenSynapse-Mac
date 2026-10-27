@@ -164,6 +164,10 @@ final class OpenRazerModel: PageModel {
         mappingLoaded = true
     }
 
+    func buttonName(_ button: UInt8) -> String {
+        MappingActions.buttonName(button, productId: device.definition.productId)
+    }
+
     /// The normal-layer left button stays locked so a mapping can never take away the click.
     func isLocked(_ button: UInt8, layer: MappingLayer) -> Bool { button == 0x01 && layer == .normal }
 
@@ -171,7 +175,7 @@ final class OpenRazerModel: PageModel {
         await run("按键设置") {
             try await device.setButtonAssignment(button, layer: layer, assignment)
             assignments[layer, default: [:]][button] = assignment
-            return "\(MappingActions.buttonName(button))（\(layer.displayName)）已设为 \(MappingActions.describe(assignment))"
+            return "\(buttonName(button))（\(layer.displayName)）已设为 \(MappingActions.describe(assignment))"
         }
     }
 

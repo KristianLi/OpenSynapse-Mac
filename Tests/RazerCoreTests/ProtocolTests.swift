@@ -347,16 +347,31 @@ private func device(_ pid: UInt16) -> DeviceDefinition {
         tilt.bytes[88] = RazerReport.crc(tilt.bytes)
         let assignment = try MappingProtocol.parseAssignment(tilt)
         #expect(assignment == ButtonAssignment(function: 0x0E, data: [0x68]))
-        #expect(MappingActions.describe(assignment) == "连发：向左滚动")
+        #expect(MappingActions.describe(assignment) == "向左滚动（按住连发）")
+        #expect(MappingActions.selection(for: assignment)?.group == .turboMouseButton)
+    }
+
+    /// The Basilisk wheel tilt ships as turbo scroll left / right at rate 0x0014; a plain
+    /// scroll-wheel-mode code 0x02 does not scroll, which is why only the toggle is offered.
+    @Test func turboMouseButtonMatchesTheFactoryTilt() {
+        let scrollUp = MappingActions.assignment(.turboMouseButton, MappingOption(name: "滚轮上滚", code: 0x09))
+        #expect(scrollUp == ButtonAssignment(function: 0x0E, data: [0x09, 0x00, 0x14]))
+        let factory = ButtonAssignment(function: 0x0E, data: [0x68, 0x00, 0x14])
+        #expect(MappingActions.selection(for: factory)?.option.code == 0x68)
+        #expect(MappingActions.options(.scrollWheelMode).map(\.code) == [0x01])
     }
 
     /// 0x0E and 0x80 were identified by pressing them on a Basilisk V4 Pro.
     @Test func basiliskV4ProButtonNames() {
-        #expect(MappingActions.buttonName(0x0E) == "M1 边缘键（左键旁）")
-        #expect(MappingActions.buttonName(0x80) == "第三侧键（最前）")
+        #expect(MappingActions.buttonName(0x0E, productId: 0x00E2) == "M1 边缘键（左键旁）")
+        #expect(MappingActions.buttonName(0x80, productId: 0x00E3) == "第三侧键（最前）")
+        // Placement is per model: the Basilisk V3 has no edge button, its 0x0E is underneath.
+        #expect(MappingActions.buttonName(0x0E, productId: 0x0099) == "配置切换键（底部）")
+        #expect(MappingActions.buttonName(0x0E) == "配置切换键")
+        #expect(MappingActions.buttonName(0x80) == "按键 0x80")
         let capsLock = MappingActions.assignment(.keyboardKey, MappingOption(name: "Caps Lock", code: 57))
         #expect(capsLock == ButtonAssignment(function: 0x02, data: [0x00, 0x39]))
-        #expect(MappingActions.describe(capsLock) == "键盘 Caps Lock（Claude 语音输入）")
+        #expect(MappingActions.describe(capsLock) == "键盘 Caps Lock")
     }
 
     @Test func everyOptionRoundTripsThroughTheEditor() {

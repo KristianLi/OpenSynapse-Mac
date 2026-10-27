@@ -151,7 +151,7 @@ enum ProbeRunner {
             for button in buttons {
                 let normal = try await device.buttonAssignment(button, layer: .normal)
                 let shift = try await device.buttonAssignment(button, layer: .hyperShift)
-                print("  \(MappingActions.buttonName(button)): \(MappingActions.describe(normal)) / \(MappingActions.describe(shift))")
+                print("  \(MappingActions.buttonName(button, productId: device.definition.productId)): \(MappingActions.describe(normal)) / \(MappingActions.describe(shift))")
             }
             guard buttons.contains(0x05) else { return print("mapping-test: no forward button") }
             let original = try await device.buttonAssignment(0x05, layer: .hyperShift)

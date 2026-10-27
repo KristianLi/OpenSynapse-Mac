@@ -86,7 +86,7 @@ public enum MappingFunction {
 }
 
 public enum MappingGroup: String, CaseIterable, Sendable, Identifiable {
-    case off, mouseButton, keyboardKey, dpi, profile, mediaKey, powerKey, doubleClick, scrollWheelMode, hyperShift
+    case off, mouseButton, turboMouseButton, keyboardKey, dpi, profile, mediaKey, powerKey, doubleClick, scrollWheelMode, hyperShift
 
     public var id: String { rawValue }
 
@@ -94,13 +94,14 @@ public enum MappingGroup: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .off: "禁用"
         case .mouseButton: "鼠标按键"
+        case .turboMouseButton: "鼠标按键（按住连发）"
         case .keyboardKey: "键盘按键"
         case .dpi: "DPI"
         case .profile: "配置文件"
         case .mediaKey: "媒体键"
         case .powerKey: "电源键"
         case .doubleClick: "双击"
-        case .scrollWheelMode: "滚轮模式"
+        case .scrollWheelMode: "滚轮模式（无极 / 段落）"
         case .hyperShift: "HyperShift"
         }
     }
@@ -114,7 +115,8 @@ public struct MappingOption: Identifiable, Hashable, Sendable {
 
 /// Selectable onboard mappings, transcribed from OpenSynapse's OpenRazerMappingActions (which
 /// follows the middleware's fnId switch). Groups that need data the app cannot read from the
-/// device (macro slots, turbo rates, controller buttons) are not offered. Windows-only actions
+/// device (macro slots, controller buttons) are not offered. Turbo mouse buttons use the rate the
+/// Basilisk wheel tilt ships with. Windows-only actions
 /// (Game Bar and similar shortcuts) are left out on macOS.
 public enum MappingActions {
     public static let modifiers: [(name: String, mask: UInt8)] = [
@@ -138,9 +140,13 @@ public enum MappingActions {
         keys += [
             ("Return", 40), ("Esc", 41), ("Delete（退格）", 42), ("Tab", 43), ("空格", 44),
             ("-", 45), ("=", 46), ("[", 47), ("]", 48), ("\\", 49), (";", 51), ("'", 52), ("`", 53),
-            (",", 54), (".", 55), ("/", 56), ("Caps Lock（Claude 语音输入）", 57),
+            (",", 54), (".", 55), ("/", 56), ("Caps Lock", 57),
         ]
         for number in 1...12 { keys.append(("F\(number)", UInt8(57 + number))) }
+        // F13–F20 exist on no Mac keyboard, so they make conflict-free trigger keys.
+        for number in 13...20 {
+            keys.append(("F\(number)", UInt8(91 + number)))
+        }
         keys += [
             ("Print Screen", 70), ("Scroll Lock", 71), ("Pause", 72), ("Insert", 73), ("Home", 74),
             ("Page Up", 75), ("Forward Delete", 76), ("End", 77), ("Page Down", 78),
@@ -158,9 +164,11 @@ public enum MappingActions {
         ("停止", 183), ("推出", 184), ("亮度加", 111), ("亮度减", 112),
     ]
     static let powerKeys: [(String, UInt8)] = [("电源", 129), ("睡眠", 130), ("唤醒", 131)]
-    static let scrollModes: [(String, UInt8)] = [
-        ("切换滚轮模式", 0x01), ("滚轮上滚", 0x02), ("滚轮下滚", 0x03), ("滚轮循环（升）", 0x04), ("滚轮循环（降）", 0x05),
-    ]
+    // Upstream also lists codes 0x02–0x05 as "scroll up / down / cycle", but on the Basilisk V3
+    // they produce no scrolling at all, so only the mode toggle is offered.
+    static let scrollModes: [(String, UInt8)] = [("切换滚轮模式", 0x01)]
+    /// The repeat rate of the Basilisk's factory wheel-tilt mapping (turbo scroll left / right).
+    static let turboRate: [UInt8] = [0x00, 0x14]
 
     public static func options(_ group: MappingGroup) -> [MappingOption] {
         func list<T: BinaryInteger>(_ entries: [(String, T)]) -> [MappingOption] {
@@ -169,6 +177,7 @@ public enum MappingActions {
         switch group {
         case .off: return [MappingOption(name: "禁用", code: 0)]
         case .mouseButton: return list(mouseButtons)
+        case .turboMouseButton: return list(mouseButtons)
         case .keyboardKey: return list(keys)
         case .dpi: return list(dpiActions)
         case .profile: return list(profileActions)
@@ -185,6 +194,7 @@ public enum MappingActions {
         switch group {
         case .off: return ButtonAssignment(function: MappingFunction.off, data: [])
         case .mouseButton: return ButtonAssignment(function: MappingFunction.mouseButton, data: [UInt8(code)])
+        case .turboMouseButton: return ButtonAssignment(function: MappingFunction.turboButton, data: [UInt8(code)] + turboRate)
         case .keyboardKey:
             return code >= 224
                 ? ButtonAssignment(function: MappingFunction.keyboardKey, data: [UInt8(code), 0x00])
@@ -204,6 +214,11 @@ public enum MappingActions {
         for group in MappingGroup.allCases {
             for option in options(group) {
                 if self.assignment(group, option) == assignment { return (group, option, 0) }
+                // Some firmware reports a turbo mapping with a shorter length, so match the button only.
+                if group == .turboMouseButton, assignment.function == MappingFunction.turboButton,
+                   assignment.data.first == UInt8(option.code) {
+                    return (group, option, 0)
+                }
                 if group == .keyboardKey, assignment.function == MappingFunction.keyboardKey, assignment.data.count == 2,
                    option.code < 224, assignment.data[1] == UInt8(option.code) {
                     return (group, option, assignment.data[0])
@@ -233,40 +248,54 @@ public enum MappingActions {
             return "媒体键 " + name(mediaKeys, UInt16(data[0]) << 8 | UInt16(data[1]), String(format: "0x%02X%02X", data[0], data[1]))
         case MappingFunction.powerKey where !data.isEmpty: return name(powerKeys, data[0], "电源键 \(data[0])")
         case MappingFunction.doubleClick: return "双击"
-        case MappingFunction.scrollWheelMode where !data.isEmpty: return name(scrollModes, data[0], "滚轮模式 \(data[0])")
+        case MappingFunction.scrollWheelMode where !data.isEmpty: return name(scrollModes, data[0], String(format: "滚轮模式指令 0x%02X（不滚动）", data[0]))
         // Data 0x01 is HyperShift. The Basilisk V4 Pro's clutch button ships with data 0x39,
         // whose meaning is not documented, so it is shown as is.
         case MappingFunction.modeButton where data == [0x01]: return "HyperShift"
         case MappingFunction.modeButton:
             return "模式键功能" + (data.isEmpty ? "" : " 0x\(data.hexString)") + "（出厂设置）"
         case MappingFunction.turboButton, MappingFunction.turboKey:
-            return "连发" + (data.first.map { "：" + name(mouseButtons, $0, String(format: "0x%02X", $0)) } ?? "")
+            return (data.first.map { name(mouseButtons, $0, String(format: "鼠标按键 0x%02X", $0)) } ?? "") + "（按住连发）"
         case MappingFunction.macroI, MappingFunction.macroII, MappingFunction.macroIII, MappingFunction.macroIV: return "宏"
         default:
             return String(format: "功能 0x%02X", assignment.function) + (data.isEmpty ? "" : " [\(data.hexString)]")
         }
     }
 
-    /// Physical button names. Most follow the factory assignment (a button's id matches the
-    /// function it ships with); 0x0E and 0x80 were identified by pressing them on a Basilisk
-    /// V4 Pro, because their factory functions (profile cycle, off) do not reveal where they are.
-    public static func buttonName(_ id: UInt8) -> String {
+    /// Button names. A button's id is the mouse-button code of the function it ships with, so the
+    /// generic names describe that function, not where the button sits. Where a button lives
+    /// differs per model, so placement is only named for models checked against the hardware.
+    public static func buttonName(_ id: UInt8, productId: UInt16? = nil) -> String {
+        if let productId, let name = modelButtonNames[productId]?[id] { return name }
         switch id {
-        case 0x01: "左键"
-        case 0x02: "右键"
-        case 0x03: "滚轮按下（中键）"
-        case 0x04: "侧键（后）"
-        case 0x05: "侧键（前）"
-        case 0x09: "滚轮上滚"
-        case 0x0A: "滚轮下滚"
-        case 0x0E: "M1 边缘键（左键旁）"
-        case 0x34: "滚轮左倾"
-        case 0x35: "滚轮右倾"
-        case 0x39: "多功能扳机键"
-        case 0x60: "DPI 键"
-        case 0x6A: "滚轮模式键"
-        case 0x80: "第三侧键（最前）"
-        default: String(format: "按键 0x%02X", id)
+        case 0x01: return "左键"
+        case 0x02: return "右键"
+        case 0x03: return "滚轮按下（中键）"
+        case 0x04: return "侧键（后退）"
+        case 0x05: return "侧键（前进）"
+        case 0x09: return "滚轮上滚"
+        case 0x0A: return "滚轮下滚"
+        case 0x0B: return "DPI 升键"
+        case 0x0C: return "DPI 降键"
+        case 0x0E: return "配置切换键"
+        case 0x0F: return "灵敏度离合键"
+        case 0x34: return "滚轮左倾"
+        case 0x35: return "滚轮右倾"
+        case 0x60: return "DPI 键"
+        case 0x6A: return "滚轮模式键"
+        default: return String(format: "按键 0x%02X", id)
         }
     }
+
+    /// Per-model names, by USB product id.
+    /// - Basilisk V4 Pro: 0x0E and 0x80 were identified by pressing them; 0x39 is the paddle
+    ///   (the model has no 0x0F, and 0x39 ships with the clutch function).
+    /// - Basilisk V3: 0x0E is the profile button on the underside, 0x0F the multi-function paddle.
+    static let modelButtonNames: [UInt16: [UInt8: String]] = {
+        let basiliskV4Pro: [UInt8: String] = [
+            0x0E: "M1 边缘键（左键旁）", 0x39: "多功能扳机键", 0x80: "第三侧键（最前）",
+        ]
+        let basiliskV3: [UInt8: String] = [0x0E: "配置切换键（底部）", 0x0F: "多功能扳机键"]
+        return [0x00E2: basiliskV4Pro, 0x00E3: basiliskV4Pro, 0x0099: basiliskV3]
+    }()
 }

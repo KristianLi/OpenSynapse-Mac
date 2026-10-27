@@ -32,7 +32,7 @@ struct ButtonMappingCard: View {
         let original = model.originalAssignments[layer]?[button]
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(MappingActions.buttonName(button))
+                Text(model.buttonName(button))
                 Text(current.map(MappingActions.describe) ?? "无法读取")
                     .font(.caption)
                     .foregroundStyle(current != original ? Color.orange : Color.secondary)
@@ -50,7 +50,7 @@ struct ButtonMappingCard: View {
                 Button("修改…") { editing = button }
                     .disabled(model.busy || current == nil)
                     .popover(isPresented: Binding(get: { editing == button }, set: { if !$0 { editing = nil } })) {
-                        MappingEditor(buttonName: MappingActions.buttonName(button), current: current) { assignment in
+                        MappingEditor(buttonName: model.buttonName(button), current: current) { assignment in
                             editing = nil
                             Task { await model.applyMapping(button, layer: layer, assignment) }
                         }
