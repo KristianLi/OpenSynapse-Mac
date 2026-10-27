@@ -350,6 +350,15 @@ private func device(_ pid: UInt16) -> DeviceDefinition {
         #expect(MappingActions.describe(assignment) == "连发：向左滚动")
     }
 
+    /// 0x0E and 0x80 were identified by pressing them on a Basilisk V4 Pro.
+    @Test func basiliskV4ProButtonNames() {
+        #expect(MappingActions.buttonName(0x0E) == "M1 边缘键（左键旁）")
+        #expect(MappingActions.buttonName(0x80) == "第三侧键（最前）")
+        let capsLock = MappingActions.assignment(.keyboardKey, MappingOption(name: "Caps Lock", code: 57))
+        #expect(capsLock == ButtonAssignment(function: 0x02, data: [0x00, 0x39]))
+        #expect(MappingActions.describe(capsLock) == "键盘 Caps Lock（Claude 语音输入）")
+    }
+
     @Test func everyOptionRoundTripsThroughTheEditor() {
         for group in MappingGroup.allCases {
             for option in MappingActions.options(group) {

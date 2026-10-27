@@ -138,7 +138,7 @@ public enum MappingActions {
         keys += [
             ("Return", 40), ("Esc", 41), ("Delete（退格）", 42), ("Tab", 43), ("空格", 44),
             ("-", 45), ("=", 46), ("[", 47), ("]", 48), ("\\", 49), (";", 51), ("'", 52), ("`", 53),
-            (",", 54), (".", 55), ("/", 56), ("Caps Lock", 57),
+            (",", 54), (".", 55), ("/", 56), ("Caps Lock（Claude 语音输入）", 57),
         ]
         for number in 1...12 { keys.append(("F\(number)", UInt8(57 + number))) }
         keys += [
@@ -247,8 +247,9 @@ public enum MappingActions {
         }
     }
 
-    /// Physical button names, inferred from the factory assignments read on a Basilisk V4 Pro
-    /// (each button's id matches the function it carries by default).
+    /// Physical button names. Most follow the factory assignment (a button's id matches the
+    /// function it ships with); 0x0E and 0x80 were identified by pressing them on a Basilisk
+    /// V4 Pro, because their factory functions (profile cycle, off) do not reveal where they are.
     public static func buttonName(_ id: UInt8) -> String {
         switch id {
         case 0x01: "左键"
@@ -258,12 +259,13 @@ public enum MappingActions {
         case 0x05: "侧键（前）"
         case 0x09: "滚轮上滚"
         case 0x0A: "滚轮下滚"
-        case 0x0E: "配置切换键"
+        case 0x0E: "M1 边缘键（左键旁）"
         case 0x34: "滚轮左倾"
         case 0x35: "滚轮右倾"
-        case 0x39: "灵敏度离合键"
+        case 0x39: "多功能扳机键"
         case 0x60: "DPI 键"
         case 0x6A: "滚轮模式键"
+        case 0x80: "第三侧键（最前）"
         default: String(format: "按键 0x%02X", id)
         }
     }
