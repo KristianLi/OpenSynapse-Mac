@@ -65,6 +65,8 @@ public final class SimulatedDevice: @unchecked Sendable {
         case 0x03 where command & 0x7F != 0x0A && command & 0x7F != 0x0D: prefix = 2
         case 0x0F where command & 0x7F == 0x04: prefix = 2
         case 0x0F where command & 0x7F == 0x02 && args.first == 0x01: prefix = 2
+        // Button assignments are keyed by profile, button and layer.
+        case 0x02 where command & 0x7F == 0x0C: prefix = 3
         case 0x02, 0x08, 0x18: prefix = 1
         default: prefix = 0
         }
@@ -97,6 +99,10 @@ public final class SimulatedDevice: @unchecked Sendable {
         case (0x02, 0x94): return [0x01, 0x00]
         case (0x02, 0x96), (0x02, 0x97): return [0x01, 0x01]
         case (0x02, 0x82): return [0x00, 0x14, 0x00, 0x28]
+        // A Basilisk-style button list; every button carries its own id as a mouse-button function.
+        case (0x02, 0x84) where name.contains("Viper") || name.contains("Basilisk"):
+            return [0x07, 0x01, 0x02, 0x03, 0x04, 0x05, 0x60, 0x6A]
+        case (0x02, 0x8C) where a.count >= 3: return [a[0], a[1], a[2], 0x01, 0x01, a[1]]
         case (0x10, 0x83): return [ChromaEffect.static.rawValue, 0, 0, 1, 0x44, 0xD6, 0x2C]
         case (0x10, 0x85): return [0xB4]
         case (0x0F, 0x82): return [1, 0, ChromaEffect.spectrum.rawValue, 0, 0, 0]

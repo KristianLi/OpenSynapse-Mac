@@ -378,6 +378,44 @@ public final class OpenRazerDevice: @unchecked Sendable {
             dataSize: 0x02, commandClass: 0x00, commandId: 0x42, arguments: [mouseProductId.high, mouseProductId.low]))
     }
 
+    // MARK: Onboard button mapping
+
+    /// Mice may answer the middleware's button-assignment commands; whether they do is only
+    /// known after the button-list GET, which has no side effects.
+    public var mayHaveButtonMapping: Bool { definition.category == .mouse }
+
+    /// Button ids the firmware lists, or an empty list when the device refuses the command.
+    public func mappableButtons() async throws -> [UInt8] {
+        guard mayHaveButtonMapping else { return [] }
+        do {
+            return try MappingProtocol.parseButtonList(try await execute(try MappingProtocol.getButtonList()))
+        } catch let error as RazerError where error.meansUnsupported {
+            DiagnosticLog.shared.write(tag, "设备不支持板载按键映射：\(error.localizedDescription)")
+            return []
+        }
+    }
+
+    public func buttonAssignment(_ button: UInt8, layer: MappingLayer) async throws -> ButtonAssignment {
+        try MappingProtocol.parseAssignment(try await execute(try MappingProtocol.getAssignment(button: button, layer: layer)))
+    }
+
+    /// Writes an assignment, reads it back and restores the previous one if the device kept
+    /// something else.
+    public func setButtonAssignment(_ button: UInt8, layer: MappingLayer, _ assignment: ButtonAssignment) async throws {
+        let previous = try await buttonAssignment(button, layer: layer)
+        if previous == assignment { return }
+        do {
+            try await execute(try MappingProtocol.setAssignment(button: button, layer: layer, assignment))
+            let actual = try await buttonAssignment(button, layer: layer)
+            guard actual == assignment else {
+                throw RazerError.invalidResponse("设备保存的是 \(MappingActions.describe(actual))")
+            }
+        } catch {
+            _ = try? await execute(try MappingProtocol.setAssignment(button: button, layer: layer, previous))
+            throw error
+        }
+    }
+
     /// Restores driver mode on wireless mice that a previous host left in normal mode, which
     /// keeps them off the 2.4 GHz link. Only modes 0x00 are rewritten.
     public func ensureDriverMode() async throws -> Bool {

@@ -64,6 +64,12 @@ final class OpenRazerModel: PageModel {
     var smartReel = false
     var keyswitch: KeyswitchOptimization = .gaming
     var hyperPollingMode = 1
+    var mappingButtons: [UInt8] = []
+    var mappingLayer: MappingLayer = .normal
+    var assignments: [MappingLayer: [UInt8: ButtonAssignment]] = [:]
+    /// Assignments as first read in this session, so a change can be undone.
+    var originalAssignments: [MappingLayer: [UInt8: ButtonAssignment]] = [:]
+    var mappingLoaded = false
 
     init(device: OpenRazerDevice) {
         self.device = device
@@ -139,6 +145,34 @@ final class OpenRazerModel: PageModel {
         }
         error = state.errors.isEmpty ? nil : state.errors.joined(separator: "\n")
         status = "已读取设备状态"
+        await loadMappings()
+    }
+
+    func loadMappings() async {
+        guard device.mayHaveButtonMapping else { return }
+        mappingButtons = (try? await device.mappableButtons()) ?? []
+        var read: [MappingLayer: [UInt8: ButtonAssignment]] = [:]
+        for layer in MappingLayer.allCases {
+            for button in mappingButtons {
+                if let value = try? await device.buttonAssignment(button, layer: layer) {
+                    read[layer, default: [:]][button] = value
+                }
+            }
+        }
+        assignments = read
+        if !mappingLoaded { originalAssignments = read }
+        mappingLoaded = true
+    }
+
+    /// The normal-layer left button stays locked so a mapping can never take away the click.
+    func isLocked(_ button: UInt8, layer: MappingLayer) -> Bool { button == 0x01 && layer == .normal }
+
+    func applyMapping(_ button: UInt8, layer: MappingLayer, _ assignment: ButtonAssignment) async {
+        await run("按键设置") {
+            try await device.setButtonAssignment(button, layer: layer, assignment)
+            assignments[layer, default: [:]][button] = assignment
+            return "\(MappingActions.buttonName(button))（\(layer.displayName)）已设为 \(MappingActions.describe(assignment))"
+        }
     }
 
     func refreshBattery() async {

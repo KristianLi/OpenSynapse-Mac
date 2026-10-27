@@ -30,6 +30,9 @@ enum ProbeRunner {
                 for spec in rawRequests() {
                     await sendRaw(spec, device: device)
                 }
+                if CommandLine.arguments.contains("--mapping-test") {
+                    await mappingTest(device)
+                }
                 if CommandLine.arguments.contains("--write-test") {
                     await writeTest(device, state)
                 }
@@ -120,7 +123,7 @@ enum ProbeRunner {
             let report = try RazerReport(transactionId: spec[0], dataSize: spec[3], commandClass: spec[1], commandId: spec[2],
                                          arguments: Array(spec.dropFirst(4)), allowArgumentsBeyondDeclaredSize: true)
             let response = try await device.endpoint.query(report, wait: device.definition.deviceWait, label: "raw")
-            print("raw \(spec.hexString): status=\(String(format: "%02X", response.status)) args=\(response.rawArguments.prefix(12).hexString)")
+            print("raw \(spec.hexString): status=\(String(format: "%02X", response.status)) args=\(response.rawArguments.prefix(24).hexString)")
         } catch {
             print("raw \(spec.hexString): \(error.localizedDescription)")
         }
@@ -136,6 +139,29 @@ enum ProbeRunner {
             print("lamp-test \(device.name): autonomous mode restored")
         } catch {
             print("lamp-test \(device.name): FAILED \(error.localizedDescription)")
+        }
+    }
+
+    /// Lists every button on both layers, then changes the HyperShift-layer forward button to the
+    /// middle button and restores it.
+    private static func mappingTest(_ device: OpenRazerDevice) async {
+        do {
+            let buttons = try await device.mappableButtons()
+            print("mapping: \(buttons.count) buttons")
+            for button in buttons {
+                let normal = try await device.buttonAssignment(button, layer: .normal)
+                let shift = try await device.buttonAssignment(button, layer: .hyperShift)
+                print("  \(MappingActions.buttonName(button)): \(MappingActions.describe(normal)) / \(MappingActions.describe(shift))")
+            }
+            guard buttons.contains(0x05) else { return print("mapping-test: no forward button") }
+            let original = try await device.buttonAssignment(0x05, layer: .hyperShift)
+            try await device.setButtonAssignment(0x05, layer: .hyperShift, ButtonAssignment(function: MappingFunction.mouseButton, data: [0x03]))
+            let changed = try await device.buttonAssignment(0x05, layer: .hyperShift)
+            try await device.setButtonAssignment(0x05, layer: .hyperShift, original)
+            let restored = try await device.buttonAssignment(0x05, layer: .hyperShift)
+            print("mapping-test: \(MappingActions.describe(original)) → \(MappingActions.describe(changed)) → \(MappingActions.describe(restored))")
+        } catch {
+            print("mapping-test: FAILED \(error.localizedDescription)")
         }
     }
 

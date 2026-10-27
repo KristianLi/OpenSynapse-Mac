@@ -16,7 +16,7 @@ Writes were tested as change → read back → restore the original value.
 
 | Device | Reads verified | Writes verified |
 |---|---|---|
-| Basilisk V4 Pro, wired (`1532:00E2`) | battery, charging, firmware, serial, DPI, DPI stages, polling rate (8000 Hz), sleep timer, low-battery warning, logo/wheel brightness | DPI, polling rate, logo/wheel brightness, DPI stage table |
+| Basilisk V4 Pro, wired (`1532:00E2`) | battery, charging, firmware, serial, DPI, DPI stages, polling rate (8000 Hz), sleep timer, low-battery warning, logo/wheel brightness, button assignments | DPI, polling rate, logo/wheel brightness, DPI stage table, onboard button mapping (14 buttons, normal and HyperShift layers) |
 | Basilisk V3 (`1532:0099`) | firmware, serial, DPI, DPI stages, polling rate, brightness, scroll mode | notched / free-spin scroll mode |
 | Kraken V4 Pro headset, USB cable (`1532:0567`) | battery, sidetone, noise-cancelling mode, game/chat balance | sidetone, game/chat balance, HID LampArray lighting |
 | Kraken V4 Pro via its control hub, 2.4 GHz (`1532:0568`) | battery, charging, sidetone, noise-cancelling mode, game/chat balance | sidetone, game/chat balance, HID LampArray lighting (tested over USB) |
@@ -28,13 +28,14 @@ Findings from these tests, already handled in the code:
 - The Basilisk V4 Pro rejects the legacy polling-rate command it inherits from its catalog sibling; the app detects this and switches to the HyperPolling command.
 - The Basilisk V4 Pro's notched / free-spin mode cannot be set from software (the firmware refuses both read and write); only the button behind the wheel changes it.
 - The Kraken V4 Pro answers on link byte `0x00` over USB, and the control hub relays to the headset on `0x80` over 2.4 GHz.
+- On the Basilisk V4 Pro the layer byte in button-assignment replies echoes the last write, so assignments are verified on function and data only. The button behind the wheel is itself a mappable button whose default function is "toggle scroll mode".
 - The Kraken V4 Pro acknowledges THX writes without applying them, so THX is hidden; noise-cancelling level is not reported, so noise cancelling is read-only.
 
 ### Implemented but untested
 
 | Family | Models | Controls |
 |---|---|---|
-| OpenRazer catalog (mice / keyboards / laptops / accessories) | 259 + 22 local additions | battery, polling rate (up to 8K), DPI, DPI stages, sleep timer, low-battery warning, per-zone effects and brightness, whole-keyboard colour, scroll mode / acceleration / Smart Reel, keyswitch optimisation, HyperPolling indicator |
+| OpenRazer catalog (mice / keyboards / laptops / accessories) | 259 + 22 local additions | onboard button mapping on mice that answer the button-list command, battery, polling rate (up to 8K), DPI, DPI stages, sleep timer, low-battery warning, per-zone effects and brightness, whole-keyboard colour, scroll mode / acceleration / Smart Reel, keyswitch optimisation, HyperPolling indicator |
 | Protocol 25 keyboards (Huntsman V3, Pro Type, …) | 23 | firmware/serial, battery, game mode, polling rate, Chroma effect and brightness |
 | Protocol 25 audio (Kraken, BlackShark V2, Barracuda, Nari, Nommo, Seiren, …) | 45 | EQ preset and 10/8 bands, bass, mic mute/volume/noise suppression, audio source, ANC |
 | Chroma 0x10 lighting accessories (Aether lamps, docks, stands, ARGB controllers, …) | 40 | effect, colour, brightness, battery |
@@ -52,6 +53,7 @@ Like upstream, a page only shows controls that the device's catalog entry declar
 
 - **Transport:** IOKit HID feature reports by default, the same reports as the Windows version. If a HID interface cannot be opened (keyboard interfaces need the Input Monitoring permission), the app falls back to USB control transfers, the channel OpenRazer uses on Linux, which needs no permission. Settings can pin either path.
 - The report format is the same; macOS passes report ID 0 separately, so byte indexes are one lower than in the upstream C# code.
+- Onboard button mapping is offered on any mouse that answers the button-list query (upstream limits it to its middleware-admitted models), and the normal-layer left button is locked so a mapping cannot take away the click.
 - Additions not in upstream: Kraken V4 Pro and its control hub, HID LampArray lighting, HyperPolling detection for 8 kHz mice whose catalog entry uses the legacy command.
 
 ## Build and run

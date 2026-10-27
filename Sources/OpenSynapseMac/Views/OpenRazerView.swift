@@ -30,6 +30,9 @@ struct OpenRazerView: View {
                         if model.has(.dpiStagesRead) || model.has(.dpiStagesWrite) {
                             stagesCard
                         }
+                        if !model.mappingButtons.isEmpty {
+                            ButtonMappingCard(model: model)
+                        }
                         if model.has(.batteryRead) || model.has(.idleTimeoutWrite) || model.has(.lowBatteryThresholdWrite) {
                             powerCard
                         }

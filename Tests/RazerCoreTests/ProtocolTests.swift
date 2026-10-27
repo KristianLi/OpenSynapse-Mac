@@ -321,3 +321,62 @@ private func device(_ pid: UInt16) -> DeviceDefinition {
         #expect(try await headset.readState().sidetone == 9)
     }
 }
+
+
+@Suite struct MappingTests {
+    /// Frames captured from a Basilisk V4 Pro (1532:00E2).
+    @Test func requestLayoutMatchesTheMiddleware() throws {
+        let get = try MappingProtocol.getAssignment(button: 0x05, layer: .hyperShift).report
+        #expect(get.transactionId == 0x1F && get.dataSize == 80 && get.commandClass == 0x02 && get.commandId == 0x8C)
+        #expect(Array(get.bytes[8...10]) == [0x01, 0x05, 0x01])
+        let set = try MappingProtocol.setAssignment(button: 0x05, layer: .hyperShift,
+                                                    ButtonAssignment(function: 0x01, data: [0x03])).report
+        #expect(set.commandId == 0x0C && Array(set.bytes[8...13]) == [0x01, 0x05, 0x01, 0x01, 0x01, 0x03])
+    }
+
+    @Test func parsesTheButtonListAndAssignments() throws {
+        var list = try RazerReport(transactionId: 0x1F, dataSize: 80, commandClass: 0x02, commandId: 0x84,
+                                   arguments: [0x03, 0x01, 0x34, 0x6A])
+        list.bytes[0] = 0x02
+        list.bytes[88] = RazerReport.crc(list.bytes)
+        #expect(try MappingProtocol.parseButtonList(list) == [0x01, 0x34, 0x6A])
+
+        var tilt = try RazerReport(transactionId: 0x1F, dataSize: 80, commandClass: 0x02, commandId: 0x8C,
+                                   arguments: [0x01, 0x34, 0x00, 0x0E, 0x01, 0x68])
+        tilt.bytes[0] = 0x02
+        tilt.bytes[88] = RazerReport.crc(tilt.bytes)
+        let assignment = try MappingProtocol.parseAssignment(tilt)
+        #expect(assignment == ButtonAssignment(function: 0x0E, data: [0x68]))
+        #expect(MappingActions.describe(assignment) == "连发：向左滚动")
+    }
+
+    @Test func everyOptionRoundTripsThroughTheEditor() {
+        for group in MappingGroup.allCases {
+            for option in MappingActions.options(group) {
+                let assignment = MappingActions.assignment(group, option)
+                let selection = MappingActions.selection(for: assignment)
+                #expect(selection != nil, "\(group) \(option.name)")
+                #expect(selection.map { MappingActions.assignment($0.group, $0.option, modifier: $0.modifier) } == assignment)
+            }
+        }
+        let shortcut = MappingActions.assignment(.keyboardKey, MappingOption(name: "C", code: 6), modifier: 0x08)
+        #expect(shortcut == ButtonAssignment(function: 0x02, data: [0x08, 0x06]))
+        #expect(MappingActions.describe(shortcut) == "键盘 Command (Win) + C")
+        #expect(MappingActions.selection(for: shortcut)?.modifier == 0x08)
+    }
+
+    @Test func writesAreVerifiedAgainstTheSimulatedMouse() async throws {
+        let group = DeviceDiscovery.groups(DeviceDiscovery.simulatedInterfaces()).first { $0.productId == 0x00C1 }!
+        guard case .openRazer(let mouse) = await DeviceDiscovery.resolve(group, preference: .automatic) else {
+            Issue.record("not resolved")
+            return
+        }
+        let buttons = try await mouse.mappableButtons()
+        #expect(buttons.contains(0x05))
+        #expect(try await mouse.buttonAssignment(0x05, layer: .hyperShift) == ButtonAssignment(function: 0x01, data: [0x05]))
+        let middle = ButtonAssignment(function: 0x01, data: [0x03])
+        try await mouse.setButtonAssignment(0x05, layer: .hyperShift, middle)
+        #expect(try await mouse.buttonAssignment(0x05, layer: .hyperShift) == middle)
+        #expect(try await mouse.buttonAssignment(0x05, layer: .normal) == ButtonAssignment(function: 0x01, data: [0x05]))
+    }
+}
