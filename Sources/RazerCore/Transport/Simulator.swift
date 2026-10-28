@@ -20,6 +20,8 @@ public final class SimulatedDevice: @unchecked Sendable {
     private var blackShark: [UInt8: UInt8] = [0x21: 82, 0x2A: 0, 0x19: 6, 0x9E: 1, 0x5C: 10]
     private var blackSharkAnc: (UInt8, UInt8) = (0x01, 2)
     public private(set) var outputLog: [[UInt8]] = []
+    /// Set to model a 2.4 GHz receiver that leaves every other transaction id unanswered.
+    public var receiverTransaction: UInt8?
 
     public init(productId: UInt16, name: String, serial: String = "PM2610H0SIM0001", shape: Shape = .feature) {
         self.productId = productId
@@ -123,6 +125,11 @@ public final class SimulatedDevice: @unchecked Sendable {
         defer { lock.unlock() }
         guard let report = try? RazerReport(bytes: request) else { return request }
         var response = request
+        if let receiverTransaction, report.transactionId != receiverTransaction {
+            response[0] = 0x04
+            response[88] = RazerReport.crc(response)
+            return response
+        }
         let commandClass = report.commandClass
         let command = report.commandId
         let args = report.rawArguments

@@ -389,6 +389,19 @@ private func device(_ pid: UInt16) -> DeviceDefinition {
         #expect(MappingActions.selection(for: shortcut)?.modifier == 0x08)
     }
 
+    /// Through its receiver the Basilisk V4 Pro answers only transaction 0x1F, while the catalog
+    /// gives the battery read 0x3F. The device retries on 0x1F and keeps using it.
+    @Test func receiverOnlyAnswersTransaction1F() async throws {
+        let definition = device(0x00E3)
+        #expect(definition.transactions["razer_chroma_misc_get_battery_level"] == 0x3F)
+        let simulated = SimulatedDevice(productId: 0x00E3, name: definition.displayName)
+        simulated.receiverTransaction = 0x1F
+        let endpoint = FeatureEndpoint(interface: simulated.interfaces(registryBase: 1)[0], preference: .automatic, tag: "test")
+        let mouse = OpenRazerDevice(definition: definition, endpoint: endpoint)
+        #expect(try await mouse.readBatteryOnly().percent != nil)
+        #expect(try await mouse.readBatteryOnly().percent != nil)
+    }
+
     @Test func writesAreVerifiedAgainstTheSimulatedMouse() async throws {
         let group = DeviceDiscovery.groups(DeviceDiscovery.simulatedInterfaces()).first { $0.productId == 0x00C1 }!
         guard case .openRazer(let mouse) = await DeviceDiscovery.resolve(group, preference: .automatic) else {

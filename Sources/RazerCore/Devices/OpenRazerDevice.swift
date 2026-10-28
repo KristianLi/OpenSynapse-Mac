@@ -56,11 +56,34 @@ public final class OpenRazerDevice: @unchecked Sendable {
 
     public func has(_ capability: Capability) -> Bool { capabilities.contains(capability) }
 
+    /// The transaction id a 2.4 GHz receiver forwards to the mouse.
+    static let receiverTransaction: UInt8 = 0x1F
+    /// Builders that went unanswered on their catalog transaction id but answered on 0x1F.
+    private var receiverBuilders: Set<String> = []
+    private let receiverLock = NSLock()
+
     @discardableResult
     func execute(_ request: RazerRequest, allowRemainingPacketsMismatch: Bool = false) async throws -> RazerReport {
+        var report = request.report
+        if receiverLock.withLock({ receiverBuilders.contains(request.builder) }) {
+            report.transactionId = Self.receiverTransaction
+        }
         do {
-            return try await endpoint.query(request.report, wait: definition.deviceWait, label: request.builder,
-                                            allowRemainingPacketsMismatch: allowRemainingPacketsMismatch)
+            do {
+                return try await endpoint.query(report, wait: definition.deviceWait, label: request.builder,
+                                                allowRemainingPacketsMismatch: allowRemainingPacketsMismatch)
+            } catch RazerError.timeout where report.transactionId != Self.receiverTransaction {
+                // The catalog's ids come from the cable path, where any id is answered. Through
+                // the receiver (seen on the Basilisk V4 Pro) only 0x1F reaches the mouse, so the
+                // battery (0x3F) and low-battery (0xFF) commands go unanswered.
+                report.transactionId = Self.receiverTransaction
+                DiagnosticLog.shared.write(tag, String(format: "%@ 在事务号 0x%02X 上无响应，改用 0x1F 重试",
+                                                       request.builder, request.report.transactionId))
+                let response = try await endpoint.query(report, wait: definition.deviceWait, label: request.builder,
+                                                        allowRemainingPacketsMismatch: allowRemainingPacketsMismatch)
+                receiverLock.withLock { _ = receiverBuilders.insert(request.builder) }
+                return response
+            }
         } catch RazerError.rejected(let message) {
             throw RazerError.notSupported(message)
         }

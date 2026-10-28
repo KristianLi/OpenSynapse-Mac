@@ -17,6 +17,7 @@ Writes were tested as change → read back → restore the original value.
 | Device | Reads verified | Writes verified |
 |---|---|---|
 | Basilisk V4 Pro, wired (`1532:00E2`) | battery, charging, firmware, serial, DPI, DPI stages, polling rate (8000 Hz), sleep timer, low-battery warning, logo/wheel brightness, button assignments | DPI, polling rate, logo/wheel brightness, DPI stage table, onboard button mapping (14 buttons, normal and HyperShift layers) |
+| Basilisk V4 Pro, 2.4 GHz receiver (`1532:00E3`) | battery, charging, firmware, serial, DPI, DPI stages, polling rate, sleep timer, low-battery warning, logo/wheel brightness | low-battery warning (same value written back) |
 | Basilisk V3 (`1532:0099`) | firmware, serial, DPI, DPI stages, polling rate, brightness, scroll mode | notched / free-spin scroll mode |
 | Kraken V4 Pro headset, USB cable (`1532:0567`) | battery, sidetone, noise-cancelling mode, game/chat balance | sidetone, game/chat balance, HID LampArray lighting |
 | Kraken V4 Pro via its control hub, 2.4 GHz (`1532:0568`) | battery, charging, sidetone, noise-cancelling mode, game/chat balance | sidetone, game/chat balance, HID LampArray lighting (tested over USB) |
@@ -25,6 +26,7 @@ Mouse lighting effects were also confirmed by hand from the app with both Basili
 
 Findings from these tests, already handled in the code:
 
+- Through its 2.4 GHz receiver the Basilisk V4 Pro only answers transaction id `0x1F`, while the catalog gives the battery and low-battery commands `0x3F` / `0xFF` (fine over the cable). A command that gets no answer is retried on `0x1F`, which is then kept for that command.
 - The Basilisk V4 Pro rejects the legacy polling-rate command it inherits from its catalog sibling; the app detects this and switches to the HyperPolling command.
 - The Basilisk V4 Pro's notched / free-spin mode cannot be set from software (the firmware refuses both read and write); only the button behind the wheel changes it.
 - The Kraken V4 Pro answers on link byte `0x00` over USB, and the control hub relays to the headset on `0x80` over 2.4 GHz.
@@ -43,7 +45,7 @@ Findings from these tests, already handled in the code:
 | BlackShark V3 Pro | 1 | battery, charging, sidetone, THX, ANC, game/chat balance |
 | HID LampArray lighting | auto-detected | colour, brightness, off, restore the device's own effect |
 
-Not tested yet even on the verified devices: wireless mice through their 2.4 GHz receiver, the USB control-transfer fallback (all tests ran over HID), and keyboards that need the Input Monitoring permission.
+Not tested yet even on the verified devices: the USB control-transfer fallback (all tests ran over HID), and keyboards that need the Input Monitoring permission.
 
 Like upstream, a page only shows controls that the device's catalog entry declares and that answer on the resolved interface. Controls whose read the firmware refuses are hidden.
 
