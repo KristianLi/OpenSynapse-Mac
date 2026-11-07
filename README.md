@@ -83,6 +83,8 @@ The tests port the upstream protocol invariants (DPI and polling bytes, lighting
 - Quit other Razer control software (Razer Synapse, Razer macOS) so two programs do not drive the same device at once.
 - With no device attached, turn on **demo mode** in Settings to preview every page with simulated devices.
 - The **Diagnostics** page logs every command sent and every reply, and lists all Razer HID interfaces.
+- The **menu bar item** lists each device with a submenu of quick adjustments: on mice, DPI stage, polling rate, brightness, lighting effect and scroll settings; on headsets, sidetone, game/chat balance, noise cancelling and lights.
+- **Cmd+Q** closes the windows and removes the Dock icon, but the app keeps running in the menu bar. To quit it completely, choose **完全退出** from the menu bar item.
 
 ## Help test a device
 

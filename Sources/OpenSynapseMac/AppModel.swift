@@ -138,6 +138,7 @@ final class AppModel {
     @ObservationIgnored private let monitor = HIDMonitor()
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var batteryTimer: Timer?
+    @ObservationIgnored private var lastMenuRefresh: Date?
 
     init(forceDemo: Bool = false) {
         demoMode = forceDemo || UserDefaults.standard.bool(forKey: "demoMode")
@@ -152,6 +153,10 @@ final class AppModel {
         observers.append(NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.inputMonitoringGranted = HIDMonitor.inputMonitoringGranted }
+        })
+        observers.append(NotificationCenter.default.addObserver(
+            forName: NSMenu.didBeginTrackingNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in await self?.refreshMice() }
         })
         batteryTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refreshBatteries() }
@@ -212,6 +217,15 @@ final class AppModel {
             case .blackShark(let model): await model.load()
             default: break
             }
+        }
+    }
+
+    /// Runs when a menu opens, at most every few seconds, so its DPI and battery are current.
+    private func refreshMice() async {
+        if let last = lastMenuRefresh, Date().timeIntervalSince(last) < 3 { return }
+        lastMenuRefresh = Date()
+        for item in items {
+            if case .openRazer(let model) = item.page { await model.refreshQuick() }
         }
     }
 

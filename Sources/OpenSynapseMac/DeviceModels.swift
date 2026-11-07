@@ -221,7 +221,26 @@ final class OpenRazerModel: PageModel {
             try await device.setDpiStages(DpiStages(activeStage: active, stages: renumbered))
             stages = renumbered
             activeStage = active
+            state.dpiStages = DpiStages(activeStage: active, stages: renumbered)
             return nil
+        }
+    }
+
+    /// Switches to a saved stage from the menu bar. Writes the table as read from the mouse, not
+    /// `stages`, which may hold unsaved edits from the device page.
+    func selectStage(_ stage: DpiStage) async {
+        guard let saved = state.dpiStages else { return }
+        await run("DPI 档位") {
+            let updated = DpiStages(activeStage: stage.number, stages: saved.stages)
+            try await device.setDpiStages(updated)
+            state.dpiStages = updated
+            activeStage = stage.number
+            let actual = try await device.setDpi(x: stage.x, y: stage.y) ?? (stage.x, stage.y)
+            state.dpi = actual
+            dpiX = Double(actual.x)
+            dpiY = Double(actual.y)
+            dpiLinked = actual.x == actual.y
+            return "DPI 已设为 \(actual.x) × \(actual.y)"
         }
     }
 
@@ -259,6 +278,48 @@ final class OpenRazerModel: PageModel {
             try await device.setBrightness(value, zone: zone)
             return "\(zone.displayName)亮度已设为 \(Int(Double(value) / 255 * 100))%"
         }
+    }
+
+    func brightnessPercent(_ zone: LedZone) -> Int {
+        Int(((brightness[zone] ?? 255) / 255 * 100).rounded())
+    }
+
+    func applyBrightness(percent: Int, zone: LedZone) async {
+        brightness[zone] = (Double(percent) * 2.55).rounded()
+        await applyBrightness(zone)
+    }
+
+    /// Effects every lit zone can show, for the menu bar. Custom frames need the device page.
+    var quickEffects: [LightingEffect] {
+        let zones = effectZones
+        return (zones.first?.orderedEffects ?? []).filter { effect in
+            effect != .custom && zones.allSatisfy { $0.effects.contains(effect) }
+        }
+    }
+
+    func applyEffectToAllZones(_ effect: LightingEffect) async {
+        await run("灯效") {
+            for caps in effectZones {
+                var settings = lighting[caps.zone] ?? LightingSettings(effect: effect)
+                settings.effect = effect
+                settings.zone = caps.zone
+                try await device.setLighting(settings)
+                lighting[caps.zone] = settings
+            }
+            return "灯效：\(effect.displayName)"
+        }
+    }
+
+    /// Picks up what the mouse's own buttons changed, right before the menu bar menu shows it.
+    func refreshQuick() async {
+        guard loaded, !busy else { return }
+        await refreshBattery()
+        guard device.has(.dpiRead), !state.unsupported.contains(.dpiRead), !busy,
+              let dpi = try? await device.getDpi() else { return }
+        state.dpi = dpi
+        dpiX = Double(dpi.x)
+        dpiY = Double(dpi.y)
+        dpiLinked = dpi.x == dpi.y
     }
 
     func applyLighting() async {
