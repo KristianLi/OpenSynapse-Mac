@@ -347,7 +347,7 @@ private func device(_ pid: UInt16) -> DeviceDefinition {
         tilt.bytes[88] = RazerReport.crc(tilt.bytes)
         let assignment = try MappingProtocol.parseAssignment(tilt)
         #expect(assignment == ButtonAssignment(function: 0x0E, data: [0x68]))
-        #expect(MappingActions.describe(assignment) == "向左滚动（按住连发）")
+        #expect(MappingActions.describe(assignment) == "Scroll left (hold to repeat)")
         #expect(MappingActions.selection(for: assignment)?.group == .turboMouseButton)
     }
 
@@ -361,17 +361,18 @@ private func device(_ pid: UInt16) -> DeviceDefinition {
         #expect(MappingActions.options(.scrollWheelMode).map(\.code) == [0x01])
     }
 
-    /// 0x0E and 0x80 were identified by pressing them on a Basilisk V4 Pro.
+    /// 0x0E and 0x80 were identified by pressing them on a Basilisk V4 Pro. Text checks use
+    /// English, the interface language of a fresh install.
     @Test func basiliskV4ProButtonNames() {
-        #expect(MappingActions.buttonName(0x0E, productId: 0x00E2) == "M1 边缘键（左键旁）")
-        #expect(MappingActions.buttonName(0x80, productId: 0x00E3) == "第三侧键（最前）")
+        #expect(MappingActions.buttonName(0x0E, productId: 0x00E2) == "M1 edge button (beside left click)")
+        #expect(MappingActions.buttonName(0x80, productId: 0x00E3) == "Third side button (front)")
         // Placement is per model: the Basilisk V3 has no edge button, its 0x0E is underneath.
-        #expect(MappingActions.buttonName(0x0E, productId: 0x0099) == "配置切换键（底部）")
-        #expect(MappingActions.buttonName(0x0E) == "配置切换键")
-        #expect(MappingActions.buttonName(0x80) == "按键 0x80")
+        #expect(MappingActions.buttonName(0x0E, productId: 0x0099) == "Profile button (underside)")
+        #expect(MappingActions.buttonName(0x0E) == "Profile button")
+        #expect(MappingActions.buttonName(0x80) == "Button 0x80")
         let capsLock = MappingActions.assignment(.keyboardKey, MappingOption(name: "Caps Lock", code: 57))
         #expect(capsLock == ButtonAssignment(function: 0x02, data: [0x00, 0x39]))
-        #expect(MappingActions.describe(capsLock) == "键盘 Caps Lock")
+        #expect(MappingActions.describe(capsLock) == "Keyboard Caps Lock")
     }
 
     @Test func everyOptionRoundTripsThroughTheEditor() {
@@ -385,7 +386,7 @@ private func device(_ pid: UInt16) -> DeviceDefinition {
         }
         let shortcut = MappingActions.assignment(.keyboardKey, MappingOption(name: "C", code: 6), modifier: 0x08)
         #expect(shortcut == ButtonAssignment(function: 0x02, data: [0x08, 0x06]))
-        #expect(MappingActions.describe(shortcut) == "键盘 Command (Win) + C")
+        #expect(MappingActions.describe(shortcut) == "Keyboard Command (Win) + C")
         #expect(MappingActions.selection(for: shortcut)?.modifier == 0x08)
     }
 

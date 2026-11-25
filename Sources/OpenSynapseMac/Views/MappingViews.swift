@@ -8,14 +8,14 @@ struct ButtonMappingCard: View {
     @State private var editing: UInt8?
 
     var body: some View {
-        Card(title: "按键设置", symbol: "computermouse.fill") {
-            Picker("层", selection: $model.mappingLayer) {
+        Card(title: L("按键设置", "Button mapping"), symbol: "computermouse.fill") {
+            Picker(L("层", "Layer"), selection: $model.mappingLayer) {
                 ForEach(MappingLayer.allCases) { Text($0.displayName).tag($0) }
             }
             .pickerStyle(.segmented)
             Text(model.mappingLayer == .normal
-                 ? "设置保存在鼠标里，不开这个应用也生效。"
-                 : "按住设为 HyperShift 的按键时，切换到这一层的功能。")
+                 ? L("设置保存在鼠标里，不开这个应用也生效。", "Settings are saved on the mouse and work without this app running.")
+                 : L("按住设为 HyperShift 的按键时，切换到这一层的功能。", "The functions on this layer apply while a button set to HyperShift is held."))
                 .font(.caption).foregroundStyle(.secondary)
             VStack(spacing: 0) {
                 ForEach(model.mappingButtons, id: \.self) { button in
@@ -33,21 +33,21 @@ struct ButtonMappingCard: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.buttonName(button))
-                Text(current.map(MappingActions.describe) ?? "无法读取")
+                Text(current.map(MappingActions.describe) ?? L("无法读取", "Unreadable"))
                     .font(.caption)
                     .foregroundStyle(current != original ? Color.orange : Color.secondary)
             }
             Spacer()
             if let original, let current, current != original {
-                Button("撤销") { Task { await model.applyMapping(button, layer: layer, original) } }
+                Button(L("撤销", "Undo")) { Task { await model.applyMapping(button, layer: layer, original) } }
                     .buttonStyle(.borderless)
-                    .help("恢复为打开应用时读到的设置：\(MappingActions.describe(original))")
+                    .help(L("恢复为打开应用时读到的设置：\(MappingActions.describe(original))", "Restore the setting read when the app opened: \(MappingActions.describe(original))"))
             }
             if model.isLocked(button, layer: layer) {
                 Image(systemName: "lock").foregroundStyle(.secondary)
-                    .help("为避免失去左键点击，普通层的左键不能修改")
+                    .help(L("为避免失去左键点击，普通层的左键不能修改", "The left button on the normal layer cannot be changed, so you never lose the left click"))
             } else {
-                Button("修改…") { editing = button }
+                Button(L("修改…", "Change…")) { editing = button }
                     .disabled(model.busy || current == nil)
                     .popover(isPresented: Binding(get: { editing == button }, set: { if !$0 { editing = nil } })) {
                         MappingEditor(buttonName: model.buttonName(button), current: current) { assignment in
@@ -82,7 +82,7 @@ private struct MappingEditor: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(buttonName).font(.headline)
             Form {
-                Picker("类型", selection: $group) {
+                Picker(L("类型", "Type"), selection: $group) {
                     ForEach(MappingGroup.allCases) { Text($0.displayName).tag($0) }
                 }
                 .onChange(of: group) { _, value in
@@ -90,22 +90,22 @@ private struct MappingEditor: View {
                     modifier = 0
                 }
                 if MappingActions.options(group).count > 1 {
-                    Picker("功能", selection: $option) {
+                    Picker(L("功能", "Function"), selection: $option) {
                         ForEach(MappingActions.options(group)) { Text($0.name).tag($0) }
                     }
                 }
                 if group == .keyboardKey, option.code < 224 {
-                    Picker("修饰键", selection: $modifier) {
+                    Picker(L("修饰键", "Modifier"), selection: $modifier) {
                         ForEach(MappingActions.modifiers, id: \.mask) { Text($0.name).tag($0.mask) }
                     }
                 }
             }
             .formStyle(.columns)
             let assignment = MappingActions.assignment(group, option, modifier: modifier)
-            Text("将设为：\(MappingActions.describe(assignment))").font(.callout).foregroundStyle(.secondary)
+            Text(L("将设为：\(MappingActions.describe(assignment))", "Will set: \(MappingActions.describe(assignment))")).font(.callout).foregroundStyle(.secondary)
             HStack {
                 Spacer()
-                Button("写入鼠标") { apply(assignment) }
+                Button(L("写入鼠标", "Write to Mouse")) { apply(assignment) }
                     .buttonStyle(.borderedProminent)
                     .tint(.razer)
                     .keyboardShortcut(.defaultAction)

@@ -52,7 +52,7 @@ enum MouseProtocol {
 
     static func setPollingRate(_ device: DeviceDefinition, hertz: Int) throws -> [RazerRequest] {
         if !device.pollingRates.isEmpty, !device.pollingRates.contains(hertz) {
-            throw RazerError.invalidArgument("该设备未声明 \(hertz) Hz 回报率")
+            throw RazerError.invalidArgument(L("该设备未声明 \(hertz) Hz 回报率", "This device does not declare a \(hertz) Hz polling rate"))
         }
         if let sequence = device.commandSequences["razer_chroma_misc_set_polling_rate2"] {
             let code = try encodeHighPollingRate(hertz)
@@ -77,13 +77,13 @@ enum MouseProtocol {
         if !highRate {
             let code = try response.successfulArguments(minimumLength: 1).first!
             guard let hertz = legacyPollingCodes.first(where: { $0.code == code })?.hertz else {
-                throw RazerError.invalidResponse(String(format: "未知回报率代码 0x%02X", code))
+                throw RazerError.invalidResponse(String(format: L("未知回报率代码 0x%02X", "Unknown polling-rate code 0x%02X"), code))
             }
             return hertz
         }
         let raw = Array(try response.successfulRawArguments())[1]
         guard let hertz = highPollingCodes.first(where: { $0.code == raw })?.hertz else {
-            throw RazerError.invalidResponse(String(format: "未知高回报率代码 0x%02X", raw))
+            throw RazerError.invalidResponse(String(format: L("未知高回报率代码 0x%02X", "Unknown high polling-rate code 0x%02X"), raw))
         }
         return hertz
     }
@@ -128,7 +128,7 @@ enum MouseProtocol {
 
     static func setDpiStages(_ device: DeviceDefinition, _ state: DpiStages) throws -> RazerRequest {
         guard (1...5).contains(state.stages.count), state.activeStage >= 1, Int(state.activeStage) <= state.stages.count else {
-            throw RazerError.invalidArgument("DPI 档位数量需为 1 到 5，且当前档位必须在范围内")
+            throw RazerError.invalidArgument(L("DPI 档位数量需为 1 到 5，且当前档位必须在范围内", "There must be 1 to 5 DPI stages, and the active stage must be one of them"))
         }
         var arguments = [UInt8](repeating: 0, count: 3 + state.stages.count * 7)
         arguments[0] = StandardProtocol.variableStore
@@ -136,7 +136,7 @@ enum MouseProtocol {
         arguments[2] = UInt8(state.stages.count)
         for (index, stage) in state.stages.enumerated() {
             guard Int(stage.number) == index + 1 else {
-                throw RazerError.invalidArgument("DPI 档位编号必须从 1 开始连续")
+                throw RazerError.invalidArgument(L("DPI 档位编号必须从 1 开始连续", "DPI stage numbers must start at 1 and be consecutive"))
             }
             try validateDpi(device, stage.x)
             try validateDpi(device, stage.y)
@@ -157,7 +157,7 @@ enum MouseProtocol {
         let active = args[1]
         let count = Int(args[2])
         guard (1...5).contains(count), active >= 1, Int(active) <= count, args.count >= 3 + count * 7 else {
-            throw RazerError.invalidResponse("设备返回的 DPI 档位表头无效")
+            throw RazerError.invalidResponse(L("设备返回的 DPI 档位表头无效", "The device returned an invalid DPI stage table header"))
         }
         var stages: [DpiStage] = []
         for index in 0..<count {
@@ -175,7 +175,7 @@ enum MouseProtocol {
 
     static func setIdleTime(_ device: DeviceDefinition, seconds: Int) throws -> RazerRequest {
         guard (60...900).contains(seconds) else {
-            throw RazerError.invalidArgument("休眠时间需在 60 到 900 秒之间")
+            throw RazerError.invalidArgument(L("休眠时间需在 60 到 900 秒之间", "The sleep timer must be between 60 and 900 seconds"))
         }
         return try StandardProtocol.create(device, "razer_chroma_misc_set_idle_time", dataSize: 0x02, commandClass: 0x07,
                                            commandId: 0x03, arguments: [seconds.highByte, seconds.lowByte])
@@ -192,7 +192,7 @@ enum MouseProtocol {
 
     static func setLowBatteryThreshold(_ device: DeviceDefinition, percent: Int) throws -> RazerRequest {
         guard (5...25).contains(percent), percent % 5 == 0 else {
-            throw RazerError.invalidArgument("低电量提醒需为 5% 到 25%，步进 5%")
+            throw RazerError.invalidArgument(L("低电量提醒需为 5% 到 25%，步进 5%", "The low-battery warning must be 5% to 25% in 5% steps"))
         }
         return try StandardProtocol.create(device, "razer_chroma_misc_set_low_battery_threshold", dataSize: 0x01, commandClass: 0x07,
                                            commandId: 0x01, arguments: [UInt8(percent * 255 / 100)])
@@ -243,14 +243,14 @@ enum MouseProtocol {
 
     private static func encodeLegacyPollingRate(_ hertz: Int) throws -> UInt8 {
         guard let code = legacyPollingCodes.first(where: { $0.hertz == hertz })?.code else {
-            throw RazerError.invalidArgument("不支持的回报率 \(hertz) Hz")
+            throw RazerError.invalidArgument(L("不支持的回报率 \(hertz) Hz", "Unsupported polling rate \(hertz) Hz"))
         }
         return code
     }
 
     private static func encodeHighPollingRate(_ hertz: Int) throws -> UInt8 {
         guard let code = highPollingCodes.first(where: { $0.hertz == hertz })?.code else {
-            throw RazerError.invalidArgument("不支持的回报率 \(hertz) Hz")
+            throw RazerError.invalidArgument(L("不支持的回报率 \(hertz) Hz", "Unsupported polling rate \(hertz) Hz"))
         }
         return code
     }
@@ -259,7 +259,7 @@ enum MouseProtocol {
     private static func encodeLegacyDpi(_ dpi: Int) throws -> UInt8 {
         let value = (Double(dpi) / 6750 * 255 * 100).rounded() / 100
         guard value >= 0, value < 256 else {
-            throw RazerError.invalidArgument("DPI 超出旧式编码范围")
+            throw RazerError.invalidArgument(L("DPI 超出旧式编码范围", "DPI is outside the legacy encoding range"))
         }
         return UInt8(value.rounded(.towardZero))
     }
@@ -273,7 +273,7 @@ enum MouseProtocol {
     private static func validateDpi(_ device: DeviceDefinition, _ value: Int) throws {
         let maximum = maximumDpi(device)
         guard value >= 100, value <= maximum else {
-            throw RazerError.invalidArgument("DPI 需在 100 到 \(maximum) 之间")
+            throw RazerError.invalidArgument(L("DPI 需在 100 到 \(maximum) 之间", "DPI must be between 100 and \(maximum)"))
         }
     }
 }

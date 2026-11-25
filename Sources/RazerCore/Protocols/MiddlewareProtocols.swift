@@ -57,7 +57,7 @@ enum KeyboardProtocol25 {
     static func args(_ response: RazerReport, _ length: Int) throws -> [UInt8] {
         let data = Array(response.rawArguments)
         guard RazerReport.isAcceptedStatus(response.status), data.count >= length else {
-            throw RazerError.invalidResponse("响应缺少数据")
+            throw RazerError.invalidResponse(L("响应缺少数据", "Response has no data"))
         }
         return data
     }
@@ -70,11 +70,11 @@ public enum ChromaEffect: UInt8, CaseIterable, Sendable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .off: "关闭"
-        case .static: "静态"
-        case .breathing: "呼吸"
-        case .spectrum: "光谱循环"
-        case .audioMeter: "音频律动"
+        case .off: L("关闭", "Off")
+        case .static: L("静态", "Static")
+        case .breathing: L("呼吸", "Breathing")
+        case .spectrum: L("光谱循环", "Spectrum cycle")
+        case .audioMeter: L("音频律动", "Audio meter")
         }
     }
 
@@ -107,7 +107,7 @@ enum ChromaProtocol {
         let data = try KeyboardProtocol25.args(response, 4)
         let count = Int(data[3])
         guard count <= maxColors, data.count >= 4 + count * 3 else {
-            throw RazerError.invalidResponse("灯效声明了 \(count) 个颜色")
+            throw RazerError.invalidResponse(L("灯效声明了 \(count) 个颜色", "Effect declares \(count) colours"))
         }
         return (ChromaEffect(rawValue: data[0]), colors(data, offset: 4, count: count))
     }
@@ -126,7 +126,7 @@ enum ChromaProtocol {
 
     static func setLegacyEffect(_ txn: UInt8, _ effect: ChromaEffect, colors: [RazerColor]) throws -> RazerReport {
         guard effect != .audioMeter else {
-            throw RazerError.notSupported("0x0F 类灯光只有四种效果")
+            throw RazerError.notSupported(L("0x0F 类灯光只有四种效果", "Class 0x0F lighting has only four effects"))
         }
         let palette = Array(colors.prefix(maxColors))
         let arguments = [1, 0, effect.rawValue, 0, 0, UInt8(palette.count)] + palette.flatMap(\.bytes)
@@ -137,7 +137,7 @@ enum ChromaProtocol {
         let data = try KeyboardProtocol25.args(response, 6)
         let count = Int(data[5])
         guard count <= maxColors, data.count >= 6 + count * 3 else {
-            throw RazerError.invalidResponse("灯效声明了 \(count) 个颜色")
+            throw RazerError.invalidResponse(L("灯效声明了 \(count) 个颜色", "Effect declares \(count) colours"))
         }
         // Class 0x0F uses id 4 for Wave, not AudioMeter, so anything above Spectrum is unknown.
         return (data[2] <= ChromaEffect.spectrum.rawValue ? ChromaEffect(rawValue: data[2]) : nil,
@@ -156,10 +156,10 @@ public enum AudioSource: UInt8, CaseIterable, Sendable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .none: "无"
-        case .spdif: "光纤 S/PDIF"
+        case .none: L("无", "None")
+        case .spdif: L("光纤 S/PDIF", "Optical S/PDIF")
         case .aux: "AUX"
-        case .bluetooth: "蓝牙"
+        case .bluetooth: L("蓝牙", "Bluetooth")
         case .usb: "USB"
         }
     }
@@ -172,9 +172,9 @@ public enum AncState: UInt8, CaseIterable, Sendable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .off: "关闭"
-        case .on: "主动降噪"
-        case .ambient: "环境音"
+        case .off: L("关闭", "Off")
+        case .on: L("主动降噪", "Active noise cancelling")
+        case .ambient: L("环境音", "Ambient")
         }
     }
 }
@@ -182,10 +182,10 @@ public enum AncState: UInt8, CaseIterable, Sendable, Identifiable {
 /// Protocol 25 audio commands: EQ, bass, microphone, audio source, ANC, noise suppression.
 enum HeadsetAudioProtocol {
     static let tenBandFrequencies = [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
-    static let presets: [(value: UInt8, name: String)] = [
-        (0x00, "默认"), (0x01, "游戏"), (0x02, "音乐"), (0x03, "电影"), (0x04, "高音增强"),
-        (0x05, "麦克风增强"), (0x06, "播客"), (0x10, "自定义"),
-    ]
+    static var presets: [(value: UInt8, name: String)] { [
+        (0x00, L("默认", "Default")), (0x01, L("游戏", "Game")), (0x02, L("音乐", "Music")), (0x03, L("电影", "Movie")), (0x04, L("高音增强", "Treble boost")),
+        (0x05, L("麦克风增强", "Voice boost")), (0x06, L("播客", "Podcast")), (0x10, L("自定义", "Custom")),
+    ] }
 
     static func getFirmware(_ txn: UInt8) throws -> RazerReport { try KeyboardProtocol25.create(txn, 2, 0x00, 0x81) }
     static func getBattery(_ txn: UInt8) throws -> RazerReport { try KeyboardProtocol25.create(txn, 2, 0x07, 0x80) }
@@ -197,7 +197,7 @@ enum HeadsetAudioProtocol {
     }
     static func setEqBands(_ txn: UInt8, _ bands: [UInt8]) throws -> RazerReport {
         guard bands.count == 10 || bands.count == 8 else {
-            throw RazerError.invalidArgument("均衡器需要 10 段或 8 段")
+            throw RazerError.invalidArgument(L("均衡器需要 10 段或 8 段", "The equaliser needs 10 or 8 bands"))
         }
         return try KeyboardProtocol25.create(txn, UInt8(bands.count + 1), 0x08, 0x04, [0] + bands)
     }
@@ -279,10 +279,10 @@ enum KrakenProtocol {
 
     static func breathing(_ layout: KrakenLayout, _ colors: [RazerColor]) throws -> [[UInt8]] {
         guard (1...3).contains(colors.count) else {
-            throw RazerError.invalidArgument("Kraken 呼吸需要 1 到 3 种颜色")
+            throw RazerError.invalidArgument(L("Kraken 呼吸需要 1 到 3 种颜色", "Kraken breathing needs 1 to 3 colours"))
         }
         guard layout == .kylie || colors.count == 1 else {
-            throw RazerError.notSupported("该 Kraken 型号只支持单色呼吸")
+            throw RazerError.notSupported(L("该 Kraken 型号只支持单色呼吸", "This Kraken model only supports single-colour breathing"))
         }
         let base = layout == .rainie ? rainieBreathing : kylieBreathing[colors.count - 1]
         var reports = colors.enumerated().map { request(address: base + UInt16($0.offset * 4), $0.element.bytes) }
@@ -298,9 +298,9 @@ public enum BlackSharkAncMode: UInt8, CaseIterable, Sendable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .off: "关闭"
-        case .anc: "主动降噪"
-        case .ambient: "环境音"
+        case .off: L("关闭", "Off")
+        case .anc: L("主动降噪", "Active noise cancelling")
+        case .ambient: L("环境音", "Ambient")
         }
     }
 }

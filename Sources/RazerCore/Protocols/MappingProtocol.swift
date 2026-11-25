@@ -21,7 +21,7 @@ public enum MappingLayer: UInt8, CaseIterable, Sendable, Identifiable {
     case hyperShift = 0x01
 
     public var id: UInt8 { rawValue }
-    public var displayName: String { self == .normal ? "普通层" : "HyperShift 层" }
+    public var displayName: String { self == .normal ? L("普通层", "Normal layer") : L("HyperShift 层", "HyperShift layer") }
 }
 
 enum MappingProtocol {
@@ -41,7 +41,7 @@ enum MappingProtocol {
     }
 
     static func setAssignment(button: UInt8, layer: MappingLayer, _ assignment: ButtonAssignment) throws -> RazerRequest {
-        guard assignment.data.count <= 5 else { throw RazerError.invalidArgument("按键功能数据最多 5 字节") }
+        guard assignment.data.count <= 5 else { throw RazerError.invalidArgument(L("按键功能数据最多 5 字节", "Button function data is at most 5 bytes")) }
         let arguments = [profileId, button, layer.rawValue, assignment.function, UInt8(assignment.data.count)] + assignment.data
         return RazerRequest(builder: "mapping.setAssignment",
                             report: try RazerReport(transactionId: transactionId, dataSize: dataSize, commandClass: 0x02, commandId: 0x0C,
@@ -92,16 +92,16 @@ public enum MappingGroup: String, CaseIterable, Sendable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .off: "禁用"
-        case .mouseButton: "鼠标按键"
-        case .turboMouseButton: "鼠标按键（按住连发）"
-        case .keyboardKey: "键盘按键"
+        case .off: L("禁用", "Disabled")
+        case .mouseButton: L("鼠标按键", "Mouse button")
+        case .turboMouseButton: L("鼠标按键（按住连发）", "Mouse button (hold to repeat)")
+        case .keyboardKey: L("键盘按键", "Keyboard key")
         case .dpi: "DPI"
-        case .profile: "配置文件"
-        case .mediaKey: "媒体键"
-        case .powerKey: "电源键"
-        case .doubleClick: "双击"
-        case .scrollWheelMode: "滚轮模式（无极 / 段落）"
+        case .profile: L("配置文件", "Profile")
+        case .mediaKey: L("媒体键", "Media key")
+        case .powerKey: L("电源键", "Power key")
+        case .doubleClick: L("双击", "Double click")
+        case .scrollWheelMode: L("滚轮模式（无极 / 段落）", "Scroll mode (free-spin / notched)")
         case .hyperShift: "HyperShift"
         }
     }
@@ -119,26 +119,26 @@ public struct MappingOption: Identifiable, Hashable, Sendable {
 /// Basilisk wheel tilt ships with. Windows-only actions
 /// (Game Bar and similar shortcuts) are left out on macOS.
 public enum MappingActions {
-    public static let modifiers: [(name: String, mask: UInt8)] = [
-        ("无", 0x00), ("Control", 0x01), ("Shift", 0x02), ("Option (Alt)", 0x04), ("Command (Win)", 0x08),
-    ]
+    public static var modifiers: [(name: String, mask: UInt8)] { [
+        (L("无", "None"), 0x00), ("Control", 0x01), ("Shift", 0x02), ("Option (Alt)", 0x04), ("Command (Win)", 0x08),
+    ] }
 
-    static let mouseButtons: [(String, UInt8)] = [
-        ("左键", 0x01), ("右键", 0x02), ("中键", 0x03), ("后退", 0x04), ("前进", 0x05),
-        ("按键 6", 0x06), ("按键 7", 0x07), ("按键 8", 0x08), ("滚轮上滚", 0x09), ("滚轮下滚", 0x0A),
-        ("DPI 升", 0x0B), ("DPI 降", 0x0C), ("用户选择", 0x0D), ("配置切换", 0x0E), ("灵敏度离合", 0x0F),
-        ("DPI 循环（升）", 0x60), ("DPI 循环（降）", 0x61), ("上一页", 0x63), ("下一页", 0x64),
-        ("音量加", 0x65), ("音量减", 0x66), ("静音", 0x67), ("向左滚动", 0x68), ("向右滚动", 0x69),
-        ("切换滚轮模式", 0x6A),
-    ]
+    static var mouseButtons: [(String, UInt8)] { [
+        (L("左键", "Left button"), 0x01), (L("右键", "Right button"), 0x02), (L("中键", "Middle button"), 0x03), (L("后退", "Back"), 0x04), (L("前进", "Forward"), 0x05),
+        (L("按键 6", "Button 6"), 0x06), (L("按键 7", "Button 7"), 0x07), (L("按键 8", "Button 8"), 0x08), (L("滚轮上滚", "Scroll up"), 0x09), (L("滚轮下滚", "Scroll down"), 0x0A),
+        (L("DPI 升", "DPI up"), 0x0B), (L("DPI 降", "DPI down"), 0x0C), (L("用户选择", "User select"), 0x0D), (L("配置切换", "Profile switch"), 0x0E), (L("灵敏度离合", "Sensitivity clutch"), 0x0F),
+        (L("DPI 循环（升）", "DPI cycle (up)"), 0x60), (L("DPI 循环（降）", "DPI cycle (down)"), 0x61), (L("上一页", "Page up"), 0x63), (L("下一页", "Page down"), 0x64),
+        (L("音量加", "Volume up"), 0x65), (L("音量减", "Volume down"), 0x66), (L("静音", "Mute"), 0x67), (L("向左滚动", "Scroll left"), 0x68), (L("向右滚动", "Scroll right"), 0x69),
+        (L("切换滚轮模式", "Toggle scroll mode"), 0x6A),
+    ] }
 
     // USB HID usage page 0x07. Modifier keys are stored as [usage, 0].
-    static let keys: [(String, UInt8)] = {
+    static var keys: [(String, UInt8)] {
         var keys: [(String, UInt8)] = []
         for (index, letter) in "ABCDEFGHIJKLMNOPQRSTUVWXYZ".enumerated() { keys.append((String(letter), UInt8(4 + index))) }
         for (index, digit) in "1234567890".enumerated() { keys.append((String(digit), UInt8(30 + index))) }
         keys += [
-            ("Return", 40), ("Esc", 41), ("Delete（退格）", 42), ("Tab", 43), ("空格", 44),
+            ("Return", 40), ("Esc", 41), (L("Delete（退格）", "Delete (Backspace)"), 42), ("Tab", 43), (L("空格", "Space"), 44),
             ("-", 45), ("=", 46), ("[", 47), ("]", 48), ("\\", 49), (";", 51), ("'", 52), ("`", 53),
             (",", 54), (".", 55), ("/", 56), ("Caps Lock", 57),
         ]
@@ -151,22 +151,22 @@ public enum MappingActions {
             ("Print Screen", 70), ("Scroll Lock", 71), ("Pause", 72), ("Insert", 73), ("Home", 74),
             ("Page Up", 75), ("Forward Delete", 76), ("End", 77), ("Page Down", 78),
             ("→", 79), ("←", 80), ("↓", 81), ("↑", 82),
-            ("左 Control", 224), ("左 Shift", 225), ("左 Option", 226), ("左 Command", 227),
-            ("右 Control", 228), ("右 Shift", 229), ("右 Option", 230), ("右 Command", 231),
+            (L("左 Control", "Left Control"), 224), (L("左 Shift", "Left Shift"), 225), (L("左 Option", "Left Option"), 226), (L("左 Command", "Left Command"), 227),
+            (L("右 Control", "Right Control"), 228), (L("右 Shift", "Right Shift"), 229), (L("右 Option", "Right Option"), 230), (L("右 Command", "Right Command"), 231),
         ]
         return keys
-    }()
+    }
 
-    static let dpiActions: [(String, UInt8)] = [("DPI 升", 0x01), ("DPI 降", 0x02), ("DPI 循环（升）", 0x06), ("DPI 循环（降）", 0x07)]
-    static let profileActions: [(String, UInt8)] = [("下一个配置", 0x01), ("上一个配置", 0x02), ("配置循环（升）", 0x04), ("配置循环（降）", 0x05)]
-    static let mediaKeys: [(String, UInt16)] = [
-        ("静音", 226), ("音量加", 233), ("音量减", 234), ("播放 / 暂停", 205), ("下一首", 181), ("上一首", 182),
-        ("停止", 183), ("推出", 184), ("亮度加", 111), ("亮度减", 112),
-    ]
-    static let powerKeys: [(String, UInt8)] = [("电源", 129), ("睡眠", 130), ("唤醒", 131)]
+    static var dpiActions: [(String, UInt8)] { [(L("DPI 升", "DPI up"), 0x01), (L("DPI 降", "DPI down"), 0x02), (L("DPI 循环（升）", "DPI cycle (up)"), 0x06), (L("DPI 循环（降）", "DPI cycle (down)"), 0x07)] }
+    static var profileActions: [(String, UInt8)] { [(L("下一个配置", "Next profile"), 0x01), (L("上一个配置", "Previous profile"), 0x02), (L("配置循环（升）", "Profile cycle (up)"), 0x04), (L("配置循环（降）", "Profile cycle (down)"), 0x05)] }
+    static var mediaKeys: [(String, UInt16)] { [
+        (L("静音", "Mute"), 226), (L("音量加", "Volume up"), 233), (L("音量减", "Volume down"), 234), (L("播放 / 暂停", "Play / Pause"), 205), (L("下一首", "Next track"), 181), (L("上一首", "Previous track"), 182),
+        (L("停止", "Stop"), 183), (L("推出", "Eject"), 184), (L("亮度加", "Brightness up"), 111), (L("亮度减", "Brightness down"), 112),
+    ] }
+    static var powerKeys: [(String, UInt8)] { [(L("电源", "Power"), 129), (L("睡眠", "Sleep"), 130), (L("唤醒", "Wake"), 131)] }
     // Upstream also lists codes 0x02–0x05 as "scroll up / down / cycle", but on the Basilisk V3
     // they produce no scrolling at all, so only the mode toggle is offered.
-    static let scrollModes: [(String, UInt8)] = [("切换滚轮模式", 0x01)]
+    static var scrollModes: [(String, UInt8)] { [(L("切换滚轮模式", "Toggle scroll mode"), 0x01)] }
     /// The repeat rate of the Basilisk's factory wheel-tilt mapping (turbo scroll left / right).
     static let turboRate: [UInt8] = [0x00, 0x14]
 
@@ -175,7 +175,7 @@ public enum MappingActions {
             entries.map { MappingOption(name: $0.0, code: UInt16($0.1)) }
         }
         switch group {
-        case .off: return [MappingOption(name: "禁用", code: 0)]
+        case .off: return [MappingOption(name: L("禁用", "Disabled"), code: 0)]
         case .mouseButton: return list(mouseButtons)
         case .turboMouseButton: return list(mouseButtons)
         case .keyboardKey: return list(keys)
@@ -183,9 +183,9 @@ public enum MappingActions {
         case .profile: return list(profileActions)
         case .mediaKey: return list(mediaKeys)
         case .powerKey: return list(powerKeys)
-        case .doubleClick: return [MappingOption(name: "双击左键", code: 1)]
+        case .doubleClick: return [MappingOption(name: L("双击左键", "Double left click"), code: 1)]
         case .scrollWheelMode: return list(scrollModes)
-        case .hyperShift: return [MappingOption(name: "按住切换到 HyperShift 层", code: 1)]
+        case .hyperShift: return [MappingOption(name: L("按住切换到 HyperShift 层", "Hold for HyperShift layer"), code: 1)]
         }
     }
 
@@ -234,31 +234,31 @@ public enum MappingActions {
             entries.first { $0.1 == value }?.0 ?? fallback
         }
         switch assignment.function {
-        case MappingFunction.off: return "禁用"
+        case MappingFunction.off: return L("禁用", "Disabled")
         case MappingFunction.mouseButton where !data.isEmpty:
-            return name(mouseButtons, data[0], String(format: "鼠标按键 0x%02X", data[0]))
+            return name(mouseButtons, data[0], String(format: L("鼠标按键 0x%02X", "Mouse button 0x%02X"), data[0]))
         case MappingFunction.keyboardKey where data.count >= 2:
-            if data[1] == 0, data[0] >= 224 { return "键盘 " + name(keys, data[0], "按键 \(data[0])") }
-            let key = name(keys, data[1], "按键 \(data[1])")
+            if data[1] == 0, data[0] >= 224 { return L("键盘 ", "Keyboard ") + name(keys, data[0], L("按键 \(data[0])", "Key \(data[0])")) }
+            let key = name(keys, data[1], L("按键 \(data[1])", "Key \(data[1])"))
             let modifier = modifiers.first { $0.mask == data[0] && $0.mask != 0 }?.name
-            return "键盘 " + (modifier.map { "\($0) + \(key)" } ?? key)
+            return L("键盘 ", "Keyboard ") + (modifier.map { "\($0) + \(key)" } ?? key)
         case MappingFunction.dpi where !data.isEmpty: return name(dpiActions, data[0], "DPI \(data[0])")
-        case MappingFunction.profile where !data.isEmpty: return name(profileActions, data[0], "配置 \(data[0])")
+        case MappingFunction.profile where !data.isEmpty: return name(profileActions, data[0], L("配置 \(data[0])", "Profile \(data[0])"))
         case MappingFunction.mediaKey where data.count >= 2:
-            return "媒体键 " + name(mediaKeys, UInt16(data[0]) << 8 | UInt16(data[1]), String(format: "0x%02X%02X", data[0], data[1]))
-        case MappingFunction.powerKey where !data.isEmpty: return name(powerKeys, data[0], "电源键 \(data[0])")
-        case MappingFunction.doubleClick: return "双击"
-        case MappingFunction.scrollWheelMode where !data.isEmpty: return name(scrollModes, data[0], String(format: "滚轮模式指令 0x%02X（不滚动）", data[0]))
+            return L("媒体键 ", "Media key ") + name(mediaKeys, UInt16(data[0]) << 8 | UInt16(data[1]), String(format: "0x%02X%02X", data[0], data[1]))
+        case MappingFunction.powerKey where !data.isEmpty: return name(powerKeys, data[0], L("电源键 \(data[0])", "Power key \(data[0])"))
+        case MappingFunction.doubleClick: return L("双击", "Double click")
+        case MappingFunction.scrollWheelMode where !data.isEmpty: return name(scrollModes, data[0], String(format: L("滚轮模式指令 0x%02X（不滚动）", "Scroll mode command 0x%02X (does not scroll)"), data[0]))
         // Data 0x01 is HyperShift. The Basilisk V4 Pro's clutch button ships with data 0x39,
         // whose meaning is not documented, so it is shown as is.
         case MappingFunction.modeButton where data == [0x01]: return "HyperShift"
         case MappingFunction.modeButton:
-            return "模式键功能" + (data.isEmpty ? "" : " 0x\(data.hexString)") + "（出厂设置）"
+            return L("模式键功能", "Mode button function") + (data.isEmpty ? "" : " 0x\(data.hexString)") + L("（出厂设置）", " (factory setting)")
         case MappingFunction.turboButton, MappingFunction.turboKey:
-            return (data.first.map { name(mouseButtons, $0, String(format: "鼠标按键 0x%02X", $0)) } ?? "") + "（按住连发）"
-        case MappingFunction.macroI, MappingFunction.macroII, MappingFunction.macroIII, MappingFunction.macroIV: return "宏"
+            return (data.first.map { name(mouseButtons, $0, String(format: L("鼠标按键 0x%02X", "Mouse button 0x%02X"), $0)) } ?? "") + L("（按住连发）", " (hold to repeat)")
+        case MappingFunction.macroI, MappingFunction.macroII, MappingFunction.macroIII, MappingFunction.macroIV: return L("宏", "Macro")
         default:
-            return String(format: "功能 0x%02X", assignment.function) + (data.isEmpty ? "" : " [\(data.hexString)]")
+            return String(format: L("功能 0x%02X", "Function 0x%02X"), assignment.function) + (data.isEmpty ? "" : " [\(data.hexString)]")
         }
     }
 
@@ -268,22 +268,22 @@ public enum MappingActions {
     public static func buttonName(_ id: UInt8, productId: UInt16? = nil) -> String {
         if let productId, let name = modelButtonNames[productId]?[id] { return name }
         switch id {
-        case 0x01: return "左键"
-        case 0x02: return "右键"
-        case 0x03: return "滚轮按下（中键）"
-        case 0x04: return "侧键（后退）"
-        case 0x05: return "侧键（前进）"
-        case 0x09: return "滚轮上滚"
-        case 0x0A: return "滚轮下滚"
-        case 0x0B: return "DPI 升键"
-        case 0x0C: return "DPI 降键"
-        case 0x0E: return "配置切换键"
-        case 0x0F: return "灵敏度离合键"
-        case 0x34: return "滚轮左倾"
-        case 0x35: return "滚轮右倾"
-        case 0x60: return "DPI 键"
-        case 0x6A: return "滚轮模式键"
-        default: return String(format: "按键 0x%02X", id)
+        case 0x01: return L("左键", "Left button")
+        case 0x02: return L("右键", "Right button")
+        case 0x03: return L("滚轮按下（中键）", "Wheel click (middle)")
+        case 0x04: return L("侧键（后退）", "Side button (back)")
+        case 0x05: return L("侧键（前进）", "Side button (forward)")
+        case 0x09: return L("滚轮上滚", "Scroll up")
+        case 0x0A: return L("滚轮下滚", "Scroll down")
+        case 0x0B: return L("DPI 升键", "DPI up button")
+        case 0x0C: return L("DPI 降键", "DPI down button")
+        case 0x0E: return L("配置切换键", "Profile button")
+        case 0x0F: return L("灵敏度离合键", "Sensitivity clutch button")
+        case 0x34: return L("滚轮左倾", "Wheel tilt left")
+        case 0x35: return L("滚轮右倾", "Wheel tilt right")
+        case 0x60: return L("DPI 键", "DPI button")
+        case 0x6A: return L("滚轮模式键", "Scroll mode button")
+        default: return String(format: L("按键 0x%02X", "Button 0x%02X"), id)
         }
     }
 
@@ -291,11 +291,11 @@ public enum MappingActions {
     /// - Basilisk V4 Pro: 0x0E and 0x80 were identified by pressing them; 0x39 is the paddle
     ///   (the model has no 0x0F, and 0x39 ships with the clutch function).
     /// - Basilisk V3: 0x0E is the profile button on the underside, 0x0F the multi-function paddle.
-    static let modelButtonNames: [UInt16: [UInt8: String]] = {
+    static var modelButtonNames: [UInt16: [UInt8: String]] {
         let basiliskV4Pro: [UInt8: String] = [
-            0x0E: "M1 边缘键（左键旁）", 0x39: "多功能扳机键", 0x80: "第三侧键（最前）",
+            0x0E: L("M1 边缘键（左键旁）", "M1 edge button (beside left click)"), 0x39: L("多功能扳机键", "Multi-function paddle"), 0x80: L("第三侧键（最前）", "Third side button (front)"),
         ]
-        let basiliskV3: [UInt8: String] = [0x0E: "配置切换键（底部）", 0x0F: "多功能扳机键"]
+        let basiliskV3: [UInt8: String] = [0x0E: L("配置切换键（底部）", "Profile button (underside)"), 0x0F: L("多功能扳机键", "Multi-function paddle")]
         return [0x00E2: basiliskV4Pro, 0x00E3: basiliskV4Pro, 0x0099: basiliskV3]
-    }()
+    }
 }

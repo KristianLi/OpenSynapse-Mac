@@ -4,14 +4,14 @@ public enum KeyswitchOptimization: String, CaseIterable, Sendable, Identifiable 
     case typing, gaming
 
     public var id: String { rawValue }
-    public var displayName: String { self == .typing ? "打字（防误触）" : "游戏（最快响应）" }
+    public var displayName: String { self == .typing ? L("打字（防误触）", "Typing (debounced)") : L("游戏（最快响应）", "Gaming (fastest response)") }
 }
 
 public enum ScrollMode: UInt8, CaseIterable, Sendable, Identifiable {
     case tactile = 0x00, freeSpin = 0x01
 
     public var id: UInt8 { rawValue }
-    public var displayName: String { self == .tactile ? "段落模式" : "无极滚动" }
+    public var displayName: String { self == .tactile ? L("段落模式", "Notched") : L("无极滚动", "Free-spin") }
 }
 
 /// Values read from a device; nil means the device did not report the value.
@@ -77,7 +77,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
                 // the receiver (seen on the Basilisk V4 Pro) only 0x1F reaches the mouse, so the
                 // battery (0x3F) and low-battery (0xFF) commands go unanswered.
                 report.transactionId = Self.receiverTransaction
-                DiagnosticLog.shared.write(tag, String(format: "%@ 在事务号 0x%02X 上无响应，改用 0x1F 重试",
+                DiagnosticLog.shared.write(tag, String(format: L("%@ 在事务号 0x%02X 上无响应，改用 0x1F 重试", "%@ got no answer on transaction 0x%02X, retrying on 0x1F"),
                                                        request.builder, request.report.transactionId))
                 let response = try await endpoint.query(report, wait: definition.deviceWait, label: request.builder,
                                                         allowRemainingPacketsMismatch: allowRemainingPacketsMismatch)
@@ -117,7 +117,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
         var lastError: Error?
         for request in safeProbes(definition) {
             do {
-                _ = try await endpoint.query(request.report, wait: definition.deviceWait, label: "探测 \(request.builder)")
+                _ = try await endpoint.query(request.report, wait: definition.deviceWait, label: L("探测 \(request.builder)", "Probe \(request.builder)"))
                 return true
             } catch let error as RazerError {
                 if case .permissionDenied = error { throw error }
@@ -138,7 +138,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
               let legacy = try? MouseProtocol.getPollingRate(definition)
         else { return definition }
         do {
-            _ = try await endpoint.query(legacy.report, wait: definition.deviceWait, label: "探测旧式回报率命令")
+            _ = try await endpoint.query(legacy.report, wait: definition.deviceWait, label: L("探测旧式回报率命令", "Probe legacy polling-rate command"))
             return definition
         } catch RazerError.notSupported, RazerError.rejected {
             // Fall through to the HyperPolling probe.
@@ -146,7 +146,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
             return definition
         }
         guard let probe = try? RazerReport(transactionId: txn, dataSize: 0x01, commandClass: 0x00, commandId: 0xC0),
-              let response = try? await endpoint.query(probe, wait: definition.deviceWait, label: "探测 HyperPolling 回报率命令"),
+              let response = try? await endpoint.query(probe, wait: definition.deviceWait, label: L("探测 HyperPolling 回报率命令", "Probe HyperPolling polling-rate command")),
               (try? MouseProtocol.parsePollingRate(response, highRate: true)) != nil
         else { return definition }
         var transactions = definition.transactions
@@ -157,7 +157,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
         sequences["razer_chroma_misc_set_polling_rate2"] = [
             CommandStep(transactionId: txn, fixedArgument0: 0x00), CommandStep(transactionId: txn, fixedArgument0: 0x01),
         ]
-        DiagnosticLog.shared.write(String(format: "openrazer-%04X", definition.productId), "改用 HyperPolling 回报率命令（00:C0 / 00:40）")
+        DiagnosticLog.shared.write(String(format: "openrazer-%04X", definition.productId), L("改用 HyperPolling 回报率命令（00:C0 / 00:40）", "Switched to the HyperPolling polling-rate command (00:C0 / 00:40)"))
         return definition.with(transactions: transactions, commandSequences: sequences)
     }
 
@@ -173,15 +173,15 @@ public final class OpenRazerDevice: @unchecked Sendable {
                 // A catalog entry can advertise an optional read that this firmware rejects or
                 // never answers. Keep the rest of the page usable and hide that control.
                 state.unsupported.insert(capability)
-                DiagnosticLog.shared.write(tag, "可选读取“\(label)”不可用：\(error.localizedDescription)")
+                DiagnosticLog.shared.write(tag, L("可选读取“\(label)”不可用：\(error.localizedDescription)", "Optional read “\(label)” unavailable: \(error.localizedDescription)"))
                 return nil
             } catch {
-                state.errors.append("\(label)：\(error.localizedDescription)")
+                state.errors.append(L("\(label)：\(error.localizedDescription)", "\(label): \(error.localizedDescription)"))
                 return nil
             }
         }
 
-        state.firmware = await read(.firmwareRead, "固件") {
+        state.firmware = await read(.firmwareRead, L("固件", "Firmware")) {
             try StandardProtocol.parseFirmware(try await execute(try StandardProtocol.getFirmware(definition)))
         }
         if has(.serialRead) {
@@ -193,38 +193,38 @@ public final class OpenRazerDevice: @unchecked Sendable {
         if state.serial == nil {
             state.serial = endpoint.interface.serialNumber
         }
-        state.batteryPercent = await read(.batteryRead, "电量") {
+        state.batteryPercent = await read(.batteryRead, L("电量", "Battery")) {
             try MouseProtocol.parseBatteryPercent(try await execute(try MouseProtocol.getBattery(definition)))
         }
-        state.charging = await read(.chargingRead, "充电状态") {
+        state.charging = await read(.chargingRead, L("充电状态", "Charging status")) {
             try MouseProtocol.parseSecondArgument(try await execute(try MouseProtocol.getCharging(definition))) != 0
         }
-        state.pollingRate = await read(.pollingRateRead, "回报率") { try await getPollingRate() }
+        state.pollingRate = await read(.pollingRateRead, L("回报率", "Polling rate")) { try await getPollingRate() }
         state.dpi = await read(.dpiRead, "DPI") { try await getDpi() }
-        state.dpiStages = await read(.dpiStagesRead, "DPI 档位") {
+        state.dpiStages = await read(.dpiStagesRead, L("DPI 档位", "DPI stages")) {
             try MouseProtocol.parseDpiStages(definition, try await execute(try MouseProtocol.getDpiStages(definition)))
         }
-        state.idleSeconds = await read(.idleTimeoutRead, "休眠时间") {
+        state.idleSeconds = await read(.idleTimeoutRead, L("休眠时间", "Sleep timer")) {
             try MouseProtocol.parseIdleSeconds(try await execute(try MouseProtocol.getIdleTime(definition)))
         }
-        state.lowBatteryThreshold = await read(.lowBatteryThresholdRead, "低电量提醒") {
+        state.lowBatteryThreshold = await read(.lowBatteryThresholdRead, L("低电量提醒", "Low-battery warning")) {
             try MouseProtocol.parseLowBatteryThreshold(try await execute(try MouseProtocol.getLowBatteryThreshold(definition)))
         }
         for zone in lightingZones.values.filter(\.canReadBrightness).map(\.zone).sorted() {
-            if let value = await read(.brightnessRead, "\(zone.displayName)亮度", { try await getBrightness(zone: zone) }) {
+            if let value = await read(.brightnessRead, L("\(zone.displayName)亮度", "\(zone.displayName) brightness"), { try await getBrightness(zone: zone) }) {
                 state.brightness[zone] = value
             }
         }
-        state.scrollMode = await read(.scrollModeRead, "滚轮模式") {
+        state.scrollMode = await read(.scrollModeRead, L("滚轮模式", "Scroll mode")) {
             ScrollMode(rawValue: try MouseProtocol.parseSecondArgument(try await execute(try MouseProtocol.getScrollMode(definition))))
         } ?? nil
-        state.scrollAcceleration = await read(.scrollAccelerationRead, "滚轮加速") {
+        state.scrollAcceleration = await read(.scrollAccelerationRead, L("滚轮加速", "Scroll acceleration")) {
             try MouseProtocol.parseSecondArgument(try await execute(try MouseProtocol.getScrollAcceleration(definition))) != 0
         }
-        state.smartReel = await read(.smartReelRead, "智能滚轮") {
+        state.smartReel = await read(.smartReelRead, L("智能滚轮", "Smart Reel")) {
             try MouseProtocol.parseSecondArgument(try await execute(try MouseProtocol.getSmartReel(definition))) != 0
         }
-        state.keyswitch = await read(.keyswitchOptimizationRead, "按键优化") { try await getKeyswitchOptimization() }
+        state.keyswitch = await read(.keyswitchOptimizationRead, L("按键优化", "Keyswitch optimisation")) { try await getKeyswitchOptimization() }
         return state
     }
 
@@ -251,7 +251,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
     public func getBrightness(zone: LedZone) async throws -> UInt8 {
         let resolved = try LightingProtocol.resolveBrightnessZone(definition, write: false, zone: zone)
         guard lightingZones[resolved]?.canReadBrightness == true else {
-            throw RazerError.notSupported("灯区 \(resolved.displayName) 不支持读取亮度")
+            throw RazerError.notSupported(L("灯区 \(resolved.displayName) 不支持读取亮度", "Zone \(resolved.displayName) does not support reading brightness"))
         }
         let request = try LightingProtocol.getBrightness(definition, storage: nil, zone: resolved)
         return try LightingProtocol.parseBrightness(request, try await execute(request))
@@ -264,7 +264,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
         switch (args[1], args[3]) {
         case (0x14, 0x28): return .typing
         case (0x00, 0x00): return .gaming
-        default: throw RazerError.invalidResponse("未知的按键优化状态")
+        default: throw RazerError.invalidResponse(L("未知的按键优化状态", "Unknown keyswitch optimisation state"))
         }
     }
 
@@ -309,7 +309,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
     public func setBrightness(_ value: UInt8, zone: LedZone) async throws {
         let resolved = try LightingProtocol.resolveBrightnessZone(definition, write: true, zone: zone)
         guard lightingZones[resolved]?.canWriteBrightness == true else {
-            throw RazerError.notSupported("灯区 \(resolved.displayName) 不支持设置亮度")
+            throw RazerError.notSupported(L("灯区 \(resolved.displayName) 不支持设置亮度", "Zone \(resolved.displayName) does not support setting brightness"))
         }
         try await execute(try LightingProtocol.setBrightness(definition, storage: nil, zone: resolved, brightness: value))
     }
@@ -320,7 +320,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
         let zone = try LightingProtocol.resolveEffectZone(
             definition, settings.effect, storage: settings.storage, zone: settings.effect == .custom ? nil : settings.zone)
         guard lightingZones[zone]?.effects.contains(settings.effect) == true else {
-            throw RazerError.notSupported("灯区 \(zone.displayName) 不支持\(settings.effect.displayName)")
+            throw RazerError.notSupported(L("灯区 \(zone.displayName) 不支持\(settings.effect.displayName)", "Zone \(zone.displayName) does not support \(settings.effect.displayName)"))
         }
         for request in try LightingProtocol.createEffectRequests(definition, settings) {
             try await execute(request)
@@ -332,7 +332,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
     /// Fills the whole key matrix with one color and switches to the custom-frame effect.
     public func setMatrixColor(_ color: RazerColor) async throws {
         guard let matrix = definition.matrixDimensions, supportsMatrixFrames else {
-            throw RazerError.notSupported("该设备没有可写的按键矩阵")
+            throw RazerError.notSupported(L("该设备没有可写的按键矩阵", "This device has no writable key matrix"))
         }
         var rows: [RazerReport] = []
         for row in 0..<matrix.rows {
@@ -346,7 +346,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
             }
         }
         for report in rows {
-            _ = try await endpoint.query(report, wait: definition.deviceWait, label: "矩阵帧")
+            _ = try await endpoint.query(report, wait: definition.deviceWait, label: L("矩阵帧", "Matrix frame"))
         }
         if lightingZones.values.contains(where: { $0.effects.contains(.custom) }) {
             try await setLighting(LightingSettings(effect: .custom))
@@ -380,7 +380,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
     }
 
     public func setHyperPollingIndicator(mode: UInt8) async throws {
-        guard (1...3).contains(mode) else { throw RazerError.invalidArgument("指示灯模式需为 1 到 3") }
+        guard (1...3).contains(mode) else { throw RazerError.invalidArgument(L("指示灯模式需为 1 到 3", "Indicator mode must be 1 to 3")) }
         try await execute(try StandardProtocol.create(
             definition, "razer_chroma_misc_set_hyperpolling_wireless_dongle_indicator_led_mode",
             dataSize: 0x01, commandClass: 0x07, commandId: 0x10, arguments: [mode]))
@@ -413,7 +413,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
         do {
             return try MappingProtocol.parseButtonList(try await execute(try MappingProtocol.getButtonList()))
         } catch let error as RazerError where error.meansUnsupported {
-            DiagnosticLog.shared.write(tag, "设备不支持板载按键映射：\(error.localizedDescription)")
+            DiagnosticLog.shared.write(tag, L("设备不支持板载按键映射：\(error.localizedDescription)", "The device does not support onboard button mapping: \(error.localizedDescription)"))
             return []
         }
     }
@@ -431,7 +431,7 @@ public final class OpenRazerDevice: @unchecked Sendable {
             try await execute(try MappingProtocol.setAssignment(button: button, layer: layer, assignment))
             let actual = try await buttonAssignment(button, layer: layer)
             guard actual == assignment else {
-                throw RazerError.invalidResponse("设备保存的是 \(MappingActions.describe(actual))")
+                throw RazerError.invalidResponse(L("设备保存的是 \(MappingActions.describe(actual))", "The device saved \(MappingActions.describe(actual))"))
             }
         } catch {
             _ = try? await execute(try MappingProtocol.setAssignment(button: button, layer: layer, previous))

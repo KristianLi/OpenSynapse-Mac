@@ -7,15 +7,15 @@ public enum DeviceCategory: String, Sendable, CaseIterable {
 
     public var displayName: String {
         switch self {
-        case .mouse: "鼠标"
-        case .keyboard: "键盘"
-        case .laptop: "笔记本"
-        case .accessory: "配件"
-        case .mouseMat: "鼠标垫"
-        case .monitor: "显示器"
-        case .headset: "耳机"
-        case .speaker: "音箱"
-        case .microphone: "麦克风"
+        case .mouse: L("鼠标", "Mouse")
+        case .keyboard: L("键盘", "Keyboard")
+        case .laptop: L("笔记本", "Laptop")
+        case .accessory: L("配件", "Accessory")
+        case .mouseMat: L("鼠标垫", "Mouse mat")
+        case .monitor: L("显示器", "Monitor")
+        case .headset: L("耳机", "Headset")
+        case .speaker: L("音箱", "Speaker")
+        case .microphone: L("麦克风", "Microphone")
         }
     }
 
@@ -62,21 +62,21 @@ public enum LedZone: UInt8, Sendable, CaseIterable, Comparable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .all: "整体"
-        case .scrollWheel: "滚轮"
-        case .battery: "电池指示"
-        case .logo: "标志"
-        case .backlight: "背光"
-        case .macro: "宏指示灯"
-        case .game: "游戏模式灯"
-        case .profileRed: "配置灯（红）"
-        case .profileGreen: "配置灯（绿）"
-        case .profileBlue: "配置灯（蓝）"
-        case .rightSide: "右侧灯带"
-        case .leftSide: "左侧灯带"
-        case .charging: "充电中"
-        case .fastCharging: "快充中"
-        case .fullyCharged: "已充满"
+        case .all: L("整体", "All")
+        case .scrollWheel: L("滚轮", "Scroll wheel")
+        case .battery: L("电池指示", "Battery indicator")
+        case .logo: L("标志", "Logo")
+        case .backlight: L("背光", "Backlight")
+        case .macro: L("宏指示灯", "Macro indicator")
+        case .game: L("游戏模式灯", "Game mode light")
+        case .profileRed: L("配置灯（红）", "Profile light (red)")
+        case .profileGreen: L("配置灯（绿）", "Profile light (green)")
+        case .profileBlue: L("配置灯（蓝）", "Profile light (blue)")
+        case .rightSide: L("右侧灯带", "Right strip")
+        case .leftSide: L("左侧灯带", "Left strip")
+        case .charging: L("充电中", "Charging")
+        case .fastCharging: L("快充中", "Fast charging")
+        case .fullyCharged: L("已充满", "Fully charged")
         }
     }
 }
@@ -157,18 +157,18 @@ public struct DeviceDefinition: Sendable {
 
     func requiredTransaction(_ builder: String) throws -> UInt8 {
         guard let value = transactions[builder] else {
-            throw RazerError.notSupported("\(productIdText) 没有 \(builder) 的确定事务号")
+            throw RazerError.notSupported(L("\(productIdText) 没有 \(builder) 的确定事务号", "\(productIdText) has no fixed transaction id for \(builder)"))
         }
         return value
     }
 
     func requiredFixedArgument(_ builder: String, index: Int) throws -> UInt8 {
         guard let prefixes = builderArgumentPrefixes[builder] else {
-            throw RazerError.notSupported("\(productIdText) 没有 \(builder) 的固定参数")
+            throw RazerError.notSupported(L("\(productIdText) 没有 \(builder) 的固定参数", "\(productIdText) has no fixed arguments for \(builder)"))
         }
         let values = Set(prefixes.filter { $0.count > index }.map { $0[index] })
         guard values.count == 1, let value = values.first else {
-            throw RazerError.notSupported("\(productIdText) 的 \(builder) 参数 \(index) 不唯一")
+            throw RazerError.notSupported(L("\(productIdText) 的 \(builder) 参数 \(index) 不唯一", "\(productIdText): argument \(index) of \(builder) is not unique"))
         }
         return value
     }
@@ -209,7 +209,7 @@ public final class OpenRazerCatalog: Sendable {
         do {
             return try OpenRazerCatalog.loadBuiltIn()
         } catch {
-            fatalError("无法加载内置 OpenRazer 设备目录：\(error)")
+            fatalError(L("无法加载内置 OpenRazer 设备目录：\(error)", "Could not load the built-in OpenRazer device catalog: \(error)"))
         }
     }()
 
@@ -257,13 +257,13 @@ public final class OpenRazerCatalog: Sendable {
             guard let url = bundle.url(forResource: name, withExtension: "json", subdirectory: "Resources")
                 ?? bundle.url(forResource: name, withExtension: "json")
             else {
-                throw RazerError.invalidArgument("缺少目录资源 \(name).json")
+                throw RazerError.invalidArgument(L("缺少目录资源 \(name).json", "Missing catalog resource \(name).json"))
             }
             try addDocument(try Data(contentsOf: url), source: name, into: &devices)
         }
         let upstreamCount = devices.count
         guard upstreamCount == expectedUpstreamCount else {
-            throw RazerError.invalidArgument("目录包含 \(upstreamCount) 个设备，预期 \(expectedUpstreamCount)")
+            throw RazerError.invalidArgument(L("目录包含 \(upstreamCount) 个设备，预期 \(expectedUpstreamCount)", "Catalog has \(upstreamCount) devices, expected \(expectedUpstreamCount)"))
         }
         addLocallyAdmittedDevices(&devices)
         return OpenRazerCatalog(devices: devices, upstreamCount: upstreamCount)
@@ -306,19 +306,19 @@ public final class OpenRazerCatalog: Sendable {
               document.source.repository == "openrazer/openrazer",
               document.source.commit == sourceCommit
         else {
-            throw RazerError.invalidArgument("目录 \(source) 的版本或来源不受支持")
+            throw RazerError.invalidArgument(L("目录 \(source) 的版本或来源不受支持", "Catalog \(source) has an unsupported version or source"))
         }
         for device in document.devices {
             guard let productId = UInt16(device.productId, radix: 16),
                   let capabilities = document.capabilitySets[device.capabilitySet],
                   (0...1_000_000).contains(device.waitMicroseconds)
             else {
-                throw RazerError.invalidArgument("目录 \(source) 中的设备条目无效：\(device.productId)")
+                throw RazerError.invalidArgument(L("目录 \(source) 中的设备条目无效：\(device.productId)", "Invalid device entry in catalog \(source): \(device.productId)"))
             }
             var transactions: [String: UInt8] = [:]
             for (builder, value) in device.transactions {
                 guard let transaction = UInt8(value, radix: 16) else {
-                    throw RazerError.invalidArgument("目录 \(source) 中的事务号无效")
+                    throw RazerError.invalidArgument(L("目录 \(source) 中的事务号无效", "Invalid transaction id in catalog \(source)"))
                 }
                 transactions[builder] = transaction
             }
@@ -336,7 +336,7 @@ public final class OpenRazerCatalog: Sendable {
                     guard let txn = UInt8(step.transactionId, radix: 16),
                           let arg = UInt8(step.fixedArgument0, radix: 16)
                     else {
-                        throw RazerError.invalidArgument("目录 \(source) 中的命令序列无效")
+                        throw RazerError.invalidArgument(L("目录 \(source) 中的命令序列无效", "Invalid command sequence in catalog \(source)"))
                     }
                     return CommandStep(transactionId: txn, fixedArgument0: arg)
                 }
@@ -344,7 +344,7 @@ public final class OpenRazerCatalog: Sendable {
             var matrix: MatrixDimensions?
             if let dimensions = device.matrixDimensions {
                 guard dimensions.count == 2, (1...255).contains(dimensions[0]), (1...255).contains(dimensions[1]) else {
-                    throw RazerError.invalidArgument("目录 \(source) 中的矩阵尺寸无效")
+                    throw RazerError.invalidArgument(L("目录 \(source) 中的矩阵尺寸无效", "Invalid matrix size in catalog \(source)"))
                 }
                 matrix = MatrixDimensions(rows: UInt8(dimensions[0]), columns: UInt8(dimensions[1]))
             }
@@ -363,7 +363,7 @@ public final class OpenRazerCatalog: Sendable {
                 defaultLedZone: try parseZone(device.defaultLedZone),
                 commandSequences: sequences)
             guard output[productId] == nil else {
-                throw RazerError.invalidArgument("重复的设备 ID \(definition.productIdText)")
+                throw RazerError.invalidArgument(L("重复的设备 ID \(definition.productIdText)", "Duplicate device id \(definition.productIdText)"))
             }
             output[productId] = definition
         }
@@ -386,7 +386,7 @@ public final class OpenRazerCatalog: Sendable {
                 let readOnly = sibling.transactions.filter { readBuilders.contains($0.key) }
                 devices[productId] = sibling.with(
                     productId: productId,
-                    displayName: "\(sibling.displayName)（只读探测）",
+                    displayName: L("\(sibling.displayName)（只读探测）", "\(sibling.displayName) (read-only probe)"),
                     transactions: readOnly,
                     builderArgumentPrefixes: sibling.builderArgumentPrefixes.filter { readOnly[$0.key] != nil },
                     commandSequences: [:])
@@ -509,14 +509,14 @@ public final class OpenRazerCatalog: Sendable {
 
     private static func parseHex(_ value: String) throws -> [UInt8] {
         guard value.count % 2 == 0, !value.isEmpty, value.count <= 160 else {
-            throw RazerError.invalidArgument("无效的十六进制参数 \(value)")
+            throw RazerError.invalidArgument(L("无效的十六进制参数 \(value)", "Invalid hex argument \(value)"))
         }
         var bytes: [UInt8] = []
         var index = value.startIndex
         while index < value.endIndex {
             let next = value.index(index, offsetBy: 2)
             guard let byte = UInt8(value[index..<next], radix: 16) else {
-                throw RazerError.invalidArgument("无效的十六进制参数 \(value)")
+                throw RazerError.invalidArgument(L("无效的十六进制参数 \(value)", "Invalid hex argument \(value)"))
             }
             bytes.append(byte)
             index = next
@@ -532,7 +532,7 @@ public final class OpenRazerCatalog: Sendable {
         case "mouse": .mouse
         case "mouse-mat": .mouseMat
         case "monitor": .monitor
-        default: throw RazerError.invalidArgument("未知设备类别 \(value)")
+        default: throw RazerError.invalidArgument(L("未知设备类别 \(value)", "Unknown device category \(value)"))
         }
     }
 
@@ -540,7 +540,7 @@ public final class OpenRazerCatalog: Sendable {
         switch value {
         case nil, "01": .persistent
         case "00": .temporary
-        default: throw RazerError.invalidArgument("未知存储类型 \(value ?? "")")
+        default: throw RazerError.invalidArgument(L("未知存储类型 \(value ?? "")", "Unknown storage type \(value ?? "")"))
         }
     }
 
@@ -550,7 +550,7 @@ public final class OpenRazerCatalog: Sendable {
               [.all, .scrollWheel, .logo, .backlight, .macro, .game, .rightSide, .leftSide,
                .charging, .fastCharging, .fullyCharged].contains(zone)
         else {
-            throw RazerError.invalidArgument("未知灯区 \(value)")
+            throw RazerError.invalidArgument(L("未知灯区 \(value)", "Unknown lighting zone \(value)"))
         }
         return zone
     }

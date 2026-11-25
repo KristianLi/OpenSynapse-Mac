@@ -194,7 +194,7 @@ final class AppModel {
         }
         let interfaces = demoMode ? DeviceDiscovery.simulatedInterfaces() : monitor.interfaces()
         rawInterfaces = interfaces
-        DiagnosticLog.shared.write("scan", "发现 \(interfaces.count) 个雷蛇 HID 接口\(demoMode ? "（演示模式）" : "")")
+        DiagnosticLog.shared.write("scan", L("发现 \(interfaces.count) 个雷蛇 HID 接口\(demoMode ? "（演示模式）" : "")", "Found \(interfaces.count) Razer HID interfaces\(demoMode ? " (demo mode)" : "")"))
         var next: [DeviceItem] = []
         var fresh: [DeviceItem] = []
         for group in DeviceDiscovery.groups(interfaces) {

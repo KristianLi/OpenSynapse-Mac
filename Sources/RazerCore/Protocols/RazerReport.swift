@@ -18,7 +18,7 @@ public struct RazerReport: Equatable, Sendable, CustomStringConvertible {
 
     public init(bytes: [UInt8]) throws {
         guard bytes.count == Self.length else {
-            throw RazerError.invalidResponse("报告长度应为 \(Self.length) 字节，实际 \(bytes.count) 字节")
+            throw RazerError.invalidResponse(L("报告长度应为 \(Self.length) 字节，实际 \(bytes.count) 字节", "A report must be \(Self.length) bytes, got \(bytes.count)"))
         }
         self.bytes = bytes
     }
@@ -36,7 +36,7 @@ public struct RazerReport: Equatable, Sendable, CustomStringConvertible {
         guard dataSize <= 80, arguments.count <= 80,
               allowArgumentsBeyondDeclaredSize || arguments.count <= Int(dataSize)
         else {
-            throw RazerError.invalidArgument("数据长度超出范围（size=\(dataSize), args=\(arguments.count)）")
+            throw RazerError.invalidArgument(L("数据长度超出范围（size=\(dataSize), args=\(arguments.count)）", "Data length out of range (size=\(dataSize), args=\(arguments.count))"))
         }
         var report = [UInt8](repeating: 0, count: Self.length)
         report[1] = transactionId
@@ -96,7 +96,7 @@ public struct RazerReport: Equatable, Sendable, CustomStringConvertible {
     /// Validated declared arguments of a successful response.
     public func successfulArguments(minimumLength: Int) throws -> ArraySlice<UInt8> {
         guard Self.isAcceptedStatus(status), Int(dataSize) >= minimumLength, dataSize <= 80, hasValidCrc else {
-            throw RazerError.invalidResponse("设备响应无效或未成功（status=0x\(String(format: "%02X", status))）")
+            throw RazerError.invalidResponse(L("设备响应无效或未成功（status=0x\(String(format: "%02X", status))）", "Invalid or unsuccessful device response (status=0x\(String(format: "%02X", status)))"))
         }
         return arguments
     }
@@ -104,7 +104,7 @@ public struct RazerReport: Equatable, Sendable, CustomStringConvertible {
     /// Validated whole argument area of a successful response.
     public func successfulRawArguments() throws -> ArraySlice<UInt8> {
         guard Self.isAcceptedStatus(status), dataSize <= 80, hasValidCrc else {
-            throw RazerError.invalidResponse("设备响应无效或未成功（status=0x\(String(format: "%02X", status))）")
+            throw RazerError.invalidResponse(L("设备响应无效或未成功（status=0x\(String(format: "%02X", status))）", "Invalid or unsuccessful device response (status=0x\(String(format: "%02X", status)))"))
         }
         return rawArguments
     }
@@ -140,14 +140,14 @@ public enum RazerError: Error, LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .notSupported(let message): "不支持：\(message)"
-        case .rejected(let message): "设备拒绝：\(message)"
-        case .timeout(let message): "无响应：\(message)"
-        case .transport(let message): "通信失败：\(message)"
-        case .invalidResponse(let message): "响应无效：\(message)"
-        case .invalidArgument(let message): "参数无效：\(message)"
-        case .notReady(let message): "设备未就绪：\(message)"
-        case .permissionDenied(let message): "没有权限：\(message)"
+        case .notSupported(let message): L("不支持：\(message)", "Not supported: \(message)")
+        case .rejected(let message): L("设备拒绝：\(message)", "Rejected by the device: \(message)")
+        case .timeout(let message): L("无响应：\(message)", "No response: \(message)")
+        case .transport(let message): L("通信失败：\(message)", "Communication failed: \(message)")
+        case .invalidResponse(let message): L("响应无效：\(message)", "Invalid response: \(message)")
+        case .invalidArgument(let message): L("参数无效：\(message)", "Invalid argument: \(message)")
+        case .notReady(let message): L("设备未就绪：\(message)", "Device not ready: \(message)")
+        case .permissionDenied(let message): L("没有权限：\(message)", "Permission denied: \(message)")
         }
     }
 

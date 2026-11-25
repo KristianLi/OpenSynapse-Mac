@@ -16,9 +16,9 @@ class PageModel {
         error = nil
         defer { busy = false }
         do {
-            status = try await body() ?? "\(label)已应用"
+            status = try await body() ?? L("\(label)已应用", "\(label) applied")
         } catch {
-            self.error = "\(label)失败：\(error.localizedDescription)"
+            self.error = L("\(label)失败：\(error.localizedDescription)", "\(label) failed: \(error.localizedDescription)")
             status = nil
         }
     }
@@ -144,7 +144,7 @@ final class OpenRazerModel: PageModel {
             lightingZone = first.zone
         }
         error = state.errors.isEmpty ? nil : state.errors.joined(separator: "\n")
-        status = "已读取设备状态"
+        status = L("已读取设备状态", "Device state read")
         await loadMappings()
     }
 
@@ -172,10 +172,10 @@ final class OpenRazerModel: PageModel {
     func isLocked(_ button: UInt8, layer: MappingLayer) -> Bool { button == 0x01 && layer == .normal }
 
     func applyMapping(_ button: UInt8, layer: MappingLayer, _ assignment: ButtonAssignment) async {
-        await run("按键设置") {
+        await run(L("按键设置", "Button mapping")) {
             try await device.setButtonAssignment(button, layer: layer, assignment)
             assignments[layer, default: [:]][button] = assignment
-            return "\(buttonName(button))（\(layer.displayName)）已设为 \(MappingActions.describe(assignment))"
+            return L("\(buttonName(button))（\(layer.displayName)）已设为 \(MappingActions.describe(assignment))", "\(buttonName(button)) (\(layer.displayName)) set to \(MappingActions.describe(assignment))")
         }
     }
 
@@ -195,19 +195,19 @@ final class OpenRazerModel: PageModel {
                 state.dpi = actual
                 dpiX = Double(actual.x)
                 dpiY = Double(actual.y)
-                return actual == (x, y) ? "DPI 已设为 \(actual.x) × \(actual.y)" : "设备当前 DPI 为 \(actual.x) × \(actual.y)（与设置值不同）"
+                return actual == (x, y) ? L("DPI 已设为 \(actual.x) × \(actual.y)", "DPI set to \(actual.x) × \(actual.y)") : L("设备当前 DPI 为 \(actual.x) × \(actual.y)（与设置值不同）", "Device DPI is now \(actual.x) × \(actual.y) (differs from the requested value)")
             }
             return nil
         }
     }
 
     func applyPollingRate(_ hertz: Int) async {
-        await run("回报率") {
+        await run(L("回报率", "Polling rate")) {
             let actual = try await device.setPollingRate(hertz)
             if let actual {
                 pollingRate = actual
                 state.pollingRate = actual
-                return actual == hertz ? "回报率已设为 \(actual) Hz" : "设备当前回报率为 \(actual) Hz（未接受 \(hertz) Hz）"
+                return actual == hertz ? L("回报率已设为 \(actual) Hz", "Polling rate set to \(actual) Hz") : L("设备当前回报率为 \(actual) Hz（未接受 \(hertz) Hz）", "Device polling rate is now \(actual) Hz (\(hertz) Hz not accepted)")
             }
             pollingRate = hertz
             return nil
@@ -217,7 +217,7 @@ final class OpenRazerModel: PageModel {
     func applyStages() async {
         let renumbered = stages.enumerated().map { DpiStage(number: UInt8($0.offset + 1), x: $0.element.x, y: $0.element.y) }
         let active = min(max(activeStage, 1), UInt8(renumbered.count))
-        await run("DPI 档位") {
+        await run(L("DPI 档位", "DPI stages")) {
             try await device.setDpiStages(DpiStages(activeStage: active, stages: renumbered))
             stages = renumbered
             activeStage = active
@@ -230,7 +230,7 @@ final class OpenRazerModel: PageModel {
     /// `stages`, which may hold unsaved edits from the device page.
     func selectStage(_ stage: DpiStage) async {
         guard let saved = state.dpiStages else { return }
-        await run("DPI 档位") {
+        await run(L("DPI 档位", "DPI stages")) {
             let updated = DpiStages(activeStage: stage.number, stages: saved.stages)
             try await device.setDpiStages(updated)
             state.dpiStages = updated
@@ -240,7 +240,7 @@ final class OpenRazerModel: PageModel {
             dpiX = Double(actual.x)
             dpiY = Double(actual.y)
             dpiLinked = actual.x == actual.y
-            return "DPI 已设为 \(actual.x) × \(actual.y)"
+            return L("DPI 已设为 \(actual.x) × \(actual.y)", "DPI set to \(actual.x) × \(actual.y)")
         }
     }
 
@@ -259,14 +259,14 @@ final class OpenRazerModel: PageModel {
 
     func applyIdle() async {
         let seconds = Int((idleMinutes * 60).rounded())
-        await run("休眠时间") {
+        await run(L("休眠时间", "Sleep timer")) {
             try await device.setIdleTime(seconds: min(max(seconds, 60), 900))
             return nil
         }
     }
 
     func applyLowBattery() async {
-        await run("低电量提醒") {
+        await run(L("低电量提醒", "Low-battery warning")) {
             try await device.setLowBatteryThreshold(percent: lowBattery)
             return nil
         }
@@ -274,9 +274,9 @@ final class OpenRazerModel: PageModel {
 
     func applyBrightness(_ zone: LedZone) async {
         let value = UInt8((brightness[zone] ?? 255).rounded().clamped(0, 255))
-        await run("\(zone.displayName)亮度") {
+        await run(L("\(zone.displayName)亮度", "\(zone.displayName) brightness")) {
             try await device.setBrightness(value, zone: zone)
-            return "\(zone.displayName)亮度已设为 \(Int(Double(value) / 255 * 100))%"
+            return L("\(zone.displayName)亮度已设为 \(Int(Double(value) / 255 * 100))%", "\(zone.displayName) brightness set to \(Int(Double(value) / 255 * 100))%")
         }
     }
 
@@ -298,7 +298,7 @@ final class OpenRazerModel: PageModel {
     }
 
     func applyEffectToAllZones(_ effect: LightingEffect) async {
-        await run("灯效") {
+        await run(L("灯效", "Lighting effect")) {
             for caps in effectZones {
                 var settings = lighting[caps.zone] ?? LightingSettings(effect: effect)
                 settings.effect = effect
@@ -306,7 +306,7 @@ final class OpenRazerModel: PageModel {
                 try await device.setLighting(settings)
                 lighting[caps.zone] = settings
             }
-            return "灯效：\(effect.displayName)"
+            return L("灯效：\(effect.displayName)", "Effect: \(effect.displayName)")
         }
     }
 
@@ -325,25 +325,25 @@ final class OpenRazerModel: PageModel {
     func applyLighting() async {
         guard var settings = lighting[lightingZone] else { return }
         settings.zone = lightingZone
-        await run("灯效") {
+        await run(L("灯效", "Lighting effect")) {
             try await device.setLighting(settings)
-            return "\(lightingZone.displayName)：\(settings.effect.displayName)"
+            return L("\(lightingZone.displayName)：\(settings.effect.displayName)", "\(lightingZone.displayName): \(settings.effect.displayName)")
         }
     }
 
     func applyMatrixColor() async {
-        await run("整键盘颜色") {
+        await run(L("整键盘颜色", "Keyboard colour")) {
             try await device.setMatrixColor(matrixColor)
             return nil
         }
     }
 
-    func applyScrollMode() async { await run("滚轮模式") { try await device.setScrollMode(scrollMode); return nil } }
-    func applyScrollAcceleration() async { await run("滚轮加速") { try await device.setScrollAcceleration(scrollAcceleration); return nil } }
-    func applySmartReel() async { await run("智能滚轮") { try await device.setSmartReel(smartReel); return nil } }
-    func applyKeyswitch() async { await run("按键优化") { try await device.setKeyswitchOptimization(keyswitch); return nil } }
+    func applyScrollMode() async { await run(L("滚轮模式", "Scroll mode")) { try await device.setScrollMode(scrollMode); return nil } }
+    func applyScrollAcceleration() async { await run(L("滚轮加速", "Scroll acceleration")) { try await device.setScrollAcceleration(scrollAcceleration); return nil } }
+    func applySmartReel() async { await run(L("智能滚轮", "Smart Reel")) { try await device.setSmartReel(smartReel); return nil } }
+    func applyKeyswitch() async { await run(L("按键优化", "Keyswitch optimisation")) { try await device.setKeyswitchOptimization(keyswitch); return nil } }
     func applyHyperPolling() async {
-        await run("接收器指示灯") { try await device.setHyperPollingIndicator(mode: UInt8(hyperPollingMode)); return nil }
+        await run(L("接收器指示灯", "Receiver indicator")) { try await device.setHyperPollingIndicator(mode: UInt8(hyperPollingMode)); return nil }
     }
 }
 
@@ -371,17 +371,17 @@ final class KeyboardModel: PageModel {
         if let value = state.gameMode { gameMode = value }
         if let value = state.pollingRate { pollingRate = value }
         error = state.errors.isEmpty ? nil : state.errors.joined(separator: "\n")
-        status = "已读取设备状态"
+        status = L("已读取设备状态", "Device state read")
         await lighting.load()
     }
 
-    func applyGameMode() async { await run("游戏模式") { try await device.setGameMode(gameMode); return nil } }
+    func applyGameMode() async { await run(L("游戏模式", "Game mode")) { try await device.setGameMode(gameMode); return nil } }
 
     func applyPollingRate(_ hertz: Int) async {
-        await run("回报率") {
+        await run(L("回报率", "Polling rate")) {
             try await device.setPollingRate(hertz)
             pollingRate = hertz
-            return "回报率已设为 \(hertz) Hz"
+            return L("回报率已设为 \(hertz) Hz", "Polling rate set to \(hertz) Hz")
         }
     }
 }
@@ -415,16 +415,16 @@ final class ChromaModel: PageModel {
     }
 
     func applyEffect() async {
-        await run("灯效") {
+        await run(L("灯效", "Lighting effect")) {
             try await device.setEffect(effect, colors: colors)
-            return "灯效：\(effect.displayName)"
+            return L("灯效：\(effect.displayName)", "Effect: \(effect.displayName)")
         }
     }
 
     func applyBrightness() async {
-        await run("亮度") {
+        await run(L("亮度", "Brightness")) {
             try await device.setBrightness(percent: Int(brightness.rounded()))
-            return "亮度已设为 \(Int(brightness.rounded()))%"
+            return L("亮度已设为 \(Int(brightness.rounded()))%", "Brightness set to \(Int(brightness.rounded()))%")
         }
     }
 }
@@ -466,19 +466,19 @@ final class AudioModel: PageModel {
         if let value = state.noiseSuppression { noiseSuppression = value }
         if let value = state.ancState { ancState = value }
         if let value = state.ancLevel { ancLevel = Int(value) }
-        status = state.errors.isEmpty ? "已读取设备状态" : "部分项目设备未回答，已隐藏"
+        status = state.errors.isEmpty ? L("已读取设备状态", "Device state read") : L("部分项目设备未回答，已隐藏", "Some items got no answer from the device and are hidden")
     }
 
-    func applyPreset() async { await run("均衡器预设") { try await device.setEqPreset(preset); return nil } }
+    func applyPreset() async { await run(L("均衡器预设", "EQ preset")) { try await device.setEqPreset(preset); return nil } }
     func applyBands() async {
-        await run("均衡器") { try await device.setEqBands(bands.map { UInt8($0.rounded().clamped(0, 100)) }); return nil }
+        await run(L("均衡器", "Equaliser")) { try await device.setEqBands(bands.map { UInt8($0.rounded().clamped(0, 100)) }); return nil }
     }
-    func applyBass() async { await run("低音增强") { try await device.setBass(UInt8(bass.rounded())); return nil } }
-    func applyMicMute() async { await run("麦克风静音") { try await device.setMicMute(micMuted); return nil } }
-    func applyMicVolume() async { await run("麦克风音量") { try await device.setMicVolume(UInt8(micVolume.rounded())); return nil } }
-    func applySource() async { await run("音源") { try await device.setAudioSource(source); return nil } }
-    func applyNoiseSuppression() async { await run("降噪") { try await device.setNoiseSuppression(noiseSuppression); return nil } }
-    func applyAnc() async { await run("主动降噪") { try await device.setAnc(ancState, level: UInt8(ancLevel)); return nil } }
+    func applyBass() async { await run(L("低音增强", "Bass boost")) { try await device.setBass(UInt8(bass.rounded())); return nil } }
+    func applyMicMute() async { await run(L("麦克风静音", "Microphone mute")) { try await device.setMicMute(micMuted); return nil } }
+    func applyMicVolume() async { await run(L("麦克风音量", "Microphone volume")) { try await device.setMicVolume(UInt8(micVolume.rounded())); return nil } }
+    func applySource() async { await run(L("音源", "Audio source")) { try await device.setAudioSource(source); return nil } }
+    func applyNoiseSuppression() async { await run(L("降噪", "Noise suppression")) { try await device.setNoiseSuppression(noiseSuppression); return nil } }
+    func applyAnc() async { await run(L("主动降噪", "Active noise cancelling")) { try await device.setAnc(ancState, level: UInt8(ancLevel)); return nil } }
 }
 
 // MARK: Kraken
@@ -495,9 +495,9 @@ final class KrakenModel: PageModel {
     }
 
     func apply() async {
-        await run("灯效") {
+        await run(L("灯效", "Lighting effect")) {
             try await device.setLighting(settings)
-            return "灯效：\(settings.effect.displayName)"
+            return L("灯效：\(settings.effect.displayName)", "Effect: \(settings.effect.displayName)")
         }
     }
 }
@@ -534,17 +534,17 @@ final class BlackSharkModel: PageModel {
             if let value = state.ancLevel { ancLevel = min(max(value, 1), 4) }
             if let value = state.gameChat { gameChat = Double(value) }
             error = nil
-            status = state.batteryPercent == nil ? "耳机没有回答，可能处于休眠或未开机；开机后会自动连上" : "已读取设备状态"
+            status = state.batteryPercent == nil ? L("耳机没有回答，可能处于休眠或未开机；开机后会自动连上", "The headset is not answering; it may be asleep or switched off. It will connect automatically once it is on") : L("已读取设备状态", "Device state read")
         } catch {
             loaded = true
-            self.error = "读取失败：\(error.localizedDescription)"
+            self.error = L("读取失败：\(error.localizedDescription)", "Read failed: \(error.localizedDescription)")
         }
     }
 
-    func applySidetone() async { await run("侧音") { try await device.setSidetone(Int(sidetone.rounded())); return nil } }
-    func applyThx() async { await run("THX 空间音效") { try await device.setThx(thx); return nil } }
-    func applyAnc() async { await run("降噪模式") { try await device.setAnc(ancMode, level: ancLevel); return nil } }
-    func applyGameChat() async { await run("游戏/聊天平衡") { try await device.setGameChat(Int(gameChat.rounded())); return nil } }
+    func applySidetone() async { await run(L("侧音", "Sidetone")) { try await device.setSidetone(Int(sidetone.rounded())); return nil } }
+    func applyThx() async { await run(L("THX 空间音效", "THX Spatial Audio")) { try await device.setThx(thx); return nil } }
+    func applyAnc() async { await run(L("降噪模式", "Noise cancelling mode")) { try await device.setAnc(ancMode, level: ancLevel); return nil } }
+    func applyGameChat() async { await run(L("游戏/聊天平衡", "Game/chat balance")) { try await device.setGameChat(Int(gameChat.rounded())); return nil } }
 }
 
 // MARK: HID LampArray
@@ -563,23 +563,23 @@ final class LampArrayModel: PageModel {
     private var intensity: UInt8 { UInt8((brightness / 100 * 255).rounded().clamped(0, 255)) }
 
     func apply() async {
-        await run("灯光") {
+        await run(L("灯光", "Lights")) {
             try await device.setColor(color, brightness: intensity)
-            return "已把 \(device.lampCount) 个灯设为所选颜色"
+            return L("已把 \(device.lampCount) 个灯设为所选颜色", "Set \(device.lampCount) lamps to the chosen colour")
         }
     }
 
     func off() async {
-        await run("关灯") {
+        await run(L("关灯", "Lights off")) {
             try await device.off()
-            return "灯光已关闭"
+            return L("灯光已关闭", "Lights turned off")
         }
     }
 
     func restoreDeviceEffect() async {
-        await run("恢复设备灯效") {
+        await run(L("恢复设备灯效", "Restore device effect")) {
             try await device.restoreDeviceEffect()
-            return "已交还给设备自带灯效"
+            return L("已交还给设备自带灯效", "Handed back to the device's own effect")
         }
     }
 }

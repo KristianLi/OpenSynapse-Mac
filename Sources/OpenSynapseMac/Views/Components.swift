@@ -55,7 +55,7 @@ struct ApplyButton: View {
     let busy: Bool
     let action: () async -> Void
 
-    init(_ title: String = "应用", busy: Bool, action: @escaping () async -> Void) {
+    init(_ title: String = L("应用", "Apply"), busy: Bool, action: @escaping () async -> Void) {
         self.title = title
         self.busy = busy
         self.action = action
@@ -156,7 +156,7 @@ struct PageHeader: View {
                 Button {
                     Task { await reload() }
                 } label: {
-                    Label("重新读取", systemImage: "arrow.clockwise")
+                    Label(L("重新读取", "Reload"), systemImage: "arrow.clockwise")
                 }
                 .disabled(busy)
             }

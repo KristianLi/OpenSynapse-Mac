@@ -68,7 +68,7 @@ public final class HIDInterface: @unchecked Sendable, Identifiable {
         vendorId = razerVendorId
         productId = simulated.productId
         productName = simulated.name
-        manufacturer = "Razer（模拟）"
+        manufacturer = L("Razer（模拟）", "Razer (simulated)")
         serialNumber = simulated.serial
         locationId = 0xD000_0000 | UInt32(simulated.productId)
         self.usagePage = usagePage

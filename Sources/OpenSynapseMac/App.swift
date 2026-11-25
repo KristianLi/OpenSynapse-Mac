@@ -62,11 +62,11 @@ struct OpenSynapseMacApp: App {
         .commands {
             // Only the menu command changes: logout, shutdown and the Dock's Quit still quit.
             CommandGroup(replacing: .appTermination) {
-                Button("退出到菜单栏") { DockPresence.hideToMenuBar() }
+                Button(L("退出到菜单栏", "Quit to Menu Bar")) { DockPresence.hideToMenuBar() }
                     .keyboardShortcut("q", modifiers: .command)
             }
             CommandGroup(after: .newItem) {
-                Button("重新扫描设备") { Task { await model.rescan() } }
+                Button(L("重新扫描设备", "Rescan Devices")) { Task { await model.rescan() } }
                     .keyboardShortcut("r", modifiers: .command)
             }
         }
@@ -91,7 +91,7 @@ struct MenuBarContent: View {
 
     var body: some View {
         if app.availableItems.isEmpty {
-            Text("没有可控制的雷蛇设备")
+            Text(L("没有可控制的雷蛇设备", "No controllable Razer devices"))
         }
         ForEach(app.availableItems) { item in
             DeviceQuickMenu(item: item) {
@@ -100,10 +100,10 @@ struct MenuBarContent: View {
             }
         }
         Divider()
-        Button("重新扫描") { Task { await app.rescan() } }
-        Button("打开主窗口") { showMainWindow() }
+        Button(L("重新扫描", "Rescan")) { Task { await app.rescan() } }
+        Button(L("打开主窗口", "Open Main Window")) { showMainWindow() }
         Divider()
-        Button("完全退出") { NSApp.terminate(nil) }
+        Button(L("完全退出", "Quit Completely")) { NSApp.terminate(nil) }
     }
 
     private func showMainWindow() {

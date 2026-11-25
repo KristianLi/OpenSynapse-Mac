@@ -10,21 +10,21 @@ public enum LightingEffect: String, CaseIterable, Sendable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .off: "关闭"
-        case .static: "静态"
-        case .spectrum: "光谱循环"
-        case .wave: "波浪"
-        case .reactive: "触发反应"
-        case .blinking: "闪烁"
-        case .breathingRandom: "呼吸（随机色）"
-        case .breathingSingle: "呼吸（单色）"
-        case .breathingDual: "呼吸（双色）"
-        case .breathingTriple: "呼吸（三色）"
-        case .starlightRandom: "星光（随机色）"
-        case .starlightSingle: "星光（单色）"
-        case .starlightDual: "星光（双色）"
-        case .wheel: "轮转"
-        case .custom: "自定义帧"
+        case .off: L("关闭", "Off")
+        case .static: L("静态", "Static")
+        case .spectrum: L("光谱循环", "Spectrum cycle")
+        case .wave: L("波浪", "Wave")
+        case .reactive: L("触发反应", "Reactive")
+        case .blinking: L("闪烁", "Blinking")
+        case .breathingRandom: L("呼吸（随机色）", "Breathing (random)")
+        case .breathingSingle: L("呼吸（单色）", "Breathing (single)")
+        case .breathingDual: L("呼吸（双色）", "Breathing (dual)")
+        case .breathingTriple: L("呼吸（三色）", "Breathing (triple)")
+        case .starlightRandom: L("星光（随机色）", "Starlight (random)")
+        case .starlightSingle: L("星光（单色）", "Starlight (single)")
+        case .starlightDual: L("星光（双色）", "Starlight (dual)")
+        case .wheel: L("轮转", "Wheel")
+        case .custom: L("自定义帧", "Custom frame")
         }
     }
 
@@ -108,7 +108,7 @@ enum LightingProtocol {
         if settings.effect == .custom, let customZone = settings.zone {
             selection = try selectDefaultEffect(device, settings.effect, candidates, storage)
             guard selection.zone == customZone else {
-                throw RazerError.notSupported("\(device.productIdText) 的自定义帧不在灯区 \(customZone.displayName)")
+                throw RazerError.notSupported(L("\(device.productIdText) 的自定义帧不在灯区 \(customZone.displayName)", "The custom frame of \(device.productIdText) is not in zone \(customZone.displayName)"))
             }
         } else if let zone = settings.zone {
             selection = (try selectBuilder(device, candidates, storage, zone), zone)
@@ -122,7 +122,7 @@ enum LightingProtocol {
                 ? try device.requiredFixedArgument(builder, index: 0)
                 : Storage.temporary.rawValue
             if let requested = settings.storage, requested.rawValue != fixedStorage {
-                throw RazerError.notSupported("\(device.productIdText) 的自定义帧要求固定存储区")
+                throw RazerError.notSupported(L("\(device.productIdText) 的自定义帧要求固定存储区", "The custom frame of \(device.productIdText) needs a fixed storage"))
             }
             storage = fixedStorage
         }
@@ -200,11 +200,11 @@ enum LightingProtocol {
 
     static func setCustomRow(_ device: DeviceDefinition, row: UInt8, startColumn: UInt8, colors: [RazerColor]) throws -> RazerRequest {
         guard (1...25).contains(colors.count), Int(startColumn) + colors.count - 1 <= 255 else {
-            throw RazerError.invalidArgument("一行最多 25 个颜色")
+            throw RazerError.invalidArgument(L("一行最多 25 个颜色", "At most 25 colours per row"))
         }
         if let matrix = device.matrixDimensions,
            row >= matrix.rows || Int(startColumn) + colors.count > Int(matrix.columns) {
-            throw RazerError.invalidArgument("自定义行超出设备矩阵")
+            throw RazerError.invalidArgument(L("自定义行超出设备矩阵", "Custom row exceeds the device matrix"))
         }
         let stopColumn = UInt8(Int(startColumn) + colors.count - 1)
         let rgb = colors.flatMap(\.bytes)
@@ -244,7 +244,7 @@ enum LightingProtocol {
         case .breathingSingle: arguments = [0x03, 0x01] + p + [0, 0, 0]
         case .breathingDual: arguments = [0x03, 0x02] + p + s
         case .custom: arguments = [0x05, storage]
-        default: throw RazerError.notSupported("标准灯光协议不支持\(value.effect.displayName)")
+        default: throw RazerError.notSupported(L("标准灯光协议不支持\(value.effect.displayName)", "The standard lighting protocol does not support \(value.effect.displayName)"))
         }
         let starlight = [.starlightRandom, .starlightSingle, .starlightDual].contains(value.effect)
         let declared: UInt8 = starlight ? 1 : UInt8(arguments.count)
@@ -273,7 +273,7 @@ enum LightingProtocol {
         case .starlightSingle: tail = [0x07, 0, starSpeed, 1] + p
         case .starlightDual: tail = [0x07, 0, starSpeed, 2] + p + s
         case .custom: tail = [0x08, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        default: throw RazerError.notSupported("扩展灯光协议不支持\(value.effect.displayName)")
+        default: throw RazerError.notSupported(L("扩展灯光协议不支持\(value.effect.displayName)", "The extended lighting protocol does not support \(value.effect.displayName)"))
         }
         let arguments = value.effect == .custom ? [0x00, 0x00] + tail : [storage, zone.rawValue] + tail
         return try StandardProtocol.create(device, builder, dataSize: UInt8(arguments.count), commandClass: 0x0F, commandId: 0x02,
@@ -294,7 +294,7 @@ enum LightingProtocol {
         case .breathingRandom: tail = [0x03, 0x03, 0, 0, 0, 0, 0, 0]
         case .breathingSingle: tail = [0x03, 0x01] + p + [0, 0, 0]
         case .breathingDual: tail = [0x03, 0x02] + p + s
-        default: throw RazerError.notSupported("鼠标灯光协议不支持\(value.effect.displayName)")
+        default: throw RazerError.notSupported(L("鼠标灯光协议不支持\(value.effect.displayName)", "The mouse lighting protocol does not support \(value.effect.displayName)"))
         }
         let arguments = [storage, zone.rawValue] + tail
         return try StandardProtocol.create(device, builder, dataSize: UInt8(arguments.count), commandClass: 0x03, commandId: 0x0D,
@@ -308,7 +308,7 @@ enum LightingProtocol {
             .filter { $0.score > 0 }
             .sorted { $0.score > $1.score }
         guard let best = scored.first, scored.count == 1 || scored[0].score != scored[1].score else {
-            throw RazerError.notSupported("\(device.productIdText) 无法把该灯光操作确定到唯一的协议族")
+            throw RazerError.notSupported(L("\(device.productIdText) 无法把该灯光操作确定到唯一的协议族", "\(device.productIdText) cannot map this lighting operation to a single protocol family"))
         }
         return best.builder
     }
@@ -402,7 +402,7 @@ enum LightingProtocol {
                 return zone
             }
         }
-        throw RazerError.notSupported("\(device.productIdText) 没有支持该灯光操作的灯区")
+        throw RazerError.notSupported(L("\(device.productIdText) 没有支持该灯光操作的灯区", "\(device.productIdText) has no zone that supports this lighting operation"))
     }
 
     static func effectSuffix(_ effect: LightingEffect) throws -> String {
@@ -421,7 +421,7 @@ enum LightingProtocol {
         case .starlightDual: "starlight_dual"
         case .wheel: "wheel"
         case .custom: "custom_frame"
-        case .breathingTriple: throw RazerError.notSupported("标准 OpenRazer 灯光协议不支持三色呼吸")
+        case .breathingTriple: throw RazerError.notSupported(L("标准 OpenRazer 灯光协议不支持三色呼吸", "The standard OpenRazer lighting protocol does not support triple breathing"))
         }
     }
 
@@ -433,7 +433,7 @@ enum LightingProtocol {
         _ device: DeviceDefinition, _ effect: LightingEffect, _ candidates: [String], _ storage: UInt8
     ) throws -> (builder: String, zone: LedZone) {
         guard device.has(try genericEffectCapability(effect)) else {
-            throw RazerError.notSupported("\(device.productIdText) 没有整机级的\(effect.displayName)效果")
+            throw RazerError.notSupported(L("\(device.productIdText) 没有整机级的\(effect.displayName)效果", "\(device.productIdText) has no device-wide \(effect.displayName) effect"))
         }
         // Standard first, then mouse-extended, then extended: the order OpenRazer's generic
         // effect attributes resolve to.
@@ -443,7 +443,7 @@ enum LightingProtocol {
                 return (builder, zone)
             }
         }
-        throw RazerError.notSupported("\(device.productIdText) 的\(effect.displayName)没有确定的默认协议")
+        throw RazerError.notSupported(L("\(device.productIdText) 的\(effect.displayName)没有确定的默认协议", "\(device.productIdText) has no fixed default protocol for \(effect.displayName)"))
     }
 
     private static func builderZones(_ device: DeviceDefinition, _ builder: String, _ storage: UInt8) -> [LedZone] {
@@ -493,7 +493,7 @@ enum LightingProtocol {
         case .starlightDual: "set_starlight_dual_effect"
         case .wheel: "set_wheel_effect"
         case .custom: "set_custom_effect"
-        case .breathingTriple: throw RazerError.notSupported("三色呼吸没有通用能力")
+        case .breathingTriple: throw RazerError.notSupported(L("三色呼吸没有通用能力", "Triple breathing has no generic capability"))
         }
     }
 
@@ -538,7 +538,7 @@ enum LightingProtocol {
         case .breathingSingle: classic = .breathing
         case .blinking: classic = .blinking
         case .spectrum: classic = .spectrum
-        default: throw RazerError.notSupported("经典灯光不支持\(settings.effect.displayName)")
+        default: throw RazerError.notSupported(L("经典灯光不支持\(settings.effect.displayName)", "Classic lighting does not support \(settings.effect.displayName)"))
         }
         requests.append(try StandardProtocol.setLedEffect(device, storage: storage, zone: zone, effect: classic))
         return requests

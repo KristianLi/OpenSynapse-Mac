@@ -11,29 +11,29 @@ struct KeyboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                PageHeader(title: model.device.name, subtitle: "键盘 · \(pidText(model.device.productId)) · 协议 25",
+                PageHeader(title: model.device.name, subtitle: L("键盘 · \(pidText(model.device.productId)) · 协议 25", "Keyboard · \(pidText(model.device.productId)) · Protocol 25"),
                            symbol: DeviceCategory.keyboard.symbolName, battery: model.state.batteryPercent,
                            charging: model.state.charging, busy: model.busy || model.lighting.busy, reload: { await model.load() })
                 StatusBanner(status: model.status ?? model.lighting.status, error: model.error ?? model.lighting.error)
                 CardGrid {
-                    Card(title: "设备信息", symbol: "info.circle") {
-                        InfoRow(label: "型号", value: model.device.name)
+                    Card(title: L("设备信息", "Device info"), symbol: "info.circle") {
+                        InfoRow(label: L("型号", "Model"), value: model.device.name)
                         InfoRow(label: "USB ID", value: pidText(model.device.productId))
-                        InfoRow(label: "固件版本", value: model.state.firmware ?? "—")
-                        InfoRow(label: "序列号", value: model.state.serial ?? "—")
-                        InfoRow(label: "通信方式", value: model.device.endpoint.pathDescription)
+                        InfoRow(label: L("固件版本", "Firmware"), value: model.state.firmware ?? "—")
+                        InfoRow(label: L("序列号", "Serial number"), value: model.state.serial ?? "—")
+                        InfoRow(label: L("通信方式", "Connection"), value: model.device.endpoint.pathDescription)
                     }
                     if model.state.gameMode != nil || model.state.pollingRate != nil {
-                        Card(title: "性能", symbol: "speedometer") {
+                        Card(title: L("性能", "Performance"), symbol: "speedometer") {
                             if model.state.pollingRate != nil {
-                                Picker("回报率", selection: Binding(get: { model.pollingRate }, set: { value in
+                                Picker(L("回报率", "Polling rate"), selection: Binding(get: { model.pollingRate }, set: { value in
                                     Task { await model.applyPollingRate(value) }
                                 })) {
                                     ForEach(Keyboard25Device.pollingRateOptions, id: \.self) { Text(verbatim: "\($0) Hz").tag($0) }
                                 }
                             }
                             if model.state.gameMode != nil {
-                                Toggle("游戏模式（禁用 Win/Cmd 等按键）", isOn: Binding(get: { model.gameMode }, set: { value in
+                                Toggle(L("游戏模式（禁用 Win/Cmd 等按键）", "Game mode (disables Win/Cmd and similar keys)"), isOn: Binding(get: { model.gameMode }, set: { value in
                                     model.gameMode = value
                                     Task { await model.applyGameMode() }
                                 }))
@@ -55,22 +55,22 @@ struct ChromaLightingCard: View {
     @Bindable var model: ChromaModel
 
     var body: some View {
-        Card(title: model.device.legacy ? "灯效（0x0F 通道）" : "灯效", symbol: "sparkles") {
-            Picker("效果", selection: $model.effect) {
+        Card(title: model.device.legacy ? L("灯效（0x0F 通道）", "Lighting (0x0F channel)") : L("灯效", "Lighting effect"), symbol: "sparkles") {
+            Picker(L("效果", "Effect"), selection: $model.effect) {
                 ForEach(model.device.supportedEffects) { Text($0.displayName).tag($0) }
             }
             if model.effect.colorCount >= 1 {
-                RazerColorPicker(title: model.effect.colorCount > 1 ? "颜色 1" : "颜色", color: $model.colors[0])
+                RazerColorPicker(title: model.effect.colorCount > 1 ? L("颜色 1", "Colour 1") : L("颜色", "Colour"), color: $model.colors[0])
             }
             if model.effect.colorCount >= 2 {
-                RazerColorPicker(title: "颜色 2", color: $model.colors[1])
+                RazerColorPicker(title: L("颜色 2", "Colour 2"), color: $model.colors[1])
             }
-            ApplyButton("应用灯效", busy: model.busy) { await model.applyEffect() }
+            ApplyButton(L("应用灯效", "Apply Effect"), busy: model.busy) { await model.applyEffect() }
             if model.device.supportsBrightness {
                 Divider()
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text("亮度")
+                        Text(L("亮度", "Brightness"))
                         Spacer()
                         Text("\(Int(model.brightness))%").monospacedDigit().foregroundStyle(.secondary)
                     }
@@ -91,17 +91,17 @@ struct ChromaView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 PageHeader(title: model.device.name,
-                           subtitle: "\(model.device.category.displayName) · \(pidText(model.device.productId)) · Chroma 0x10 通道",
+                           subtitle: L("\(model.device.category.displayName) · \(pidText(model.device.productId)) · Chroma 0x10 通道", "\(model.device.category.displayName) · \(pidText(model.device.productId)) · Chroma 0x10 channel"),
                            symbol: model.device.category.symbolName, battery: model.state.batteryPercent,
                            charging: model.state.charging, busy: model.busy, reload: { await model.load() })
                 StatusBanner(status: model.status, error: model.error)
                 CardGrid {
-                    Card(title: "设备信息", symbol: "info.circle") {
-                        InfoRow(label: "型号", value: model.device.name)
+                    Card(title: L("设备信息", "Device info"), symbol: "info.circle") {
+                        InfoRow(label: L("型号", "Model"), value: model.device.name)
                         InfoRow(label: "USB ID", value: pidText(model.device.productId))
-                        InfoRow(label: "固件版本", value: model.state.firmware ?? "—")
-                        InfoRow(label: "序列号", value: model.state.serial ?? "—")
-                        InfoRow(label: "通信方式", value: model.device.endpoint.pathDescription)
+                        InfoRow(label: L("固件版本", "Firmware"), value: model.state.firmware ?? "—")
+                        InfoRow(label: L("序列号", "Serial number"), value: model.state.serial ?? "—")
+                        InfoRow(label: L("通信方式", "Connection"), value: model.device.endpoint.pathDescription)
                     }
                     ChromaLightingCard(model: model)
                 }
@@ -120,26 +120,26 @@ struct AudioView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 PageHeader(title: model.device.name,
-                           subtitle: "\(model.device.category.displayName) · \(pidText(model.device.productId)) · 协议 25 音频",
+                           subtitle: L("\(model.device.category.displayName) · \(pidText(model.device.productId)) · 协议 25 音频", "\(model.device.category.displayName) · \(pidText(model.device.productId)) · Protocol 25 audio"),
                            symbol: model.device.category.symbolName, battery: model.state.batteryPercent,
                            charging: model.state.charging, busy: model.busy, reload: { await model.load() })
                 StatusBanner(status: model.status, error: model.error)
                 CardGrid {
-                    Card(title: "设备信息", symbol: "info.circle") {
-                        InfoRow(label: "型号", value: model.device.name)
+                    Card(title: L("设备信息", "Device info"), symbol: "info.circle") {
+                        InfoRow(label: L("型号", "Model"), value: model.device.name)
                         InfoRow(label: "USB ID", value: pidText(model.device.productId))
-                        InfoRow(label: "固件版本", value: model.state.firmware ?? "—")
-                        InfoRow(label: "通信方式", value: model.device.endpoint.pathDescription)
+                        InfoRow(label: L("固件版本", "Firmware"), value: model.state.firmware ?? "—")
+                        InfoRow(label: L("通信方式", "Connection"), value: model.device.endpoint.pathDescription)
                         if model.state.batteryPercent != nil {
-                            InfoRow(label: "电量", value: "\(model.state.batteryPercent!)%" + (model.state.charging == true ? "（充电中）" : ""))
+                            InfoRow(label: L("电量", "Battery"), value: "\(model.state.batteryPercent!)%" + (model.state.charging == true ? L("（充电中）", " (charging)") : ""))
                         }
                     }
                     if model.state.eqPreset != nil || model.state.eqBands != nil {
                         equalizerCard
                     }
                     if model.state.bass != nil {
-                        Card(title: "低音增强", symbol: "speaker.wave.3") {
-                            LabeledSlider(title: "强度", value: $model.bass, range: 0...100)
+                        Card(title: L("低音增强", "Bass boost"), symbol: "speaker.wave.3") {
+                            LabeledSlider(title: L("强度", "Strength"), value: $model.bass, range: 0...100)
                             ApplyButton(busy: model.busy) { await model.applyBass() }
                         }
                     }
@@ -147,8 +147,8 @@ struct AudioView: View {
                         microphoneCard
                     }
                     if model.state.audioSource != nil {
-                        Card(title: "音源", symbol: "cable.connector") {
-                            Picker("输入", selection: Binding(get: { model.source }, set: { value in
+                        Card(title: L("音源", "Audio source"), symbol: "cable.connector") {
+                            Picker(L("输入", "Input"), selection: Binding(get: { model.source }, set: { value in
                                 model.source = value
                                 Task { await model.applySource() }
                             })) {
@@ -158,13 +158,13 @@ struct AudioView: View {
                         }
                     }
                     if model.state.ancState != nil {
-                        Card(title: "主动降噪", symbol: "ear") {
-                            Picker("模式", selection: $model.ancState) {
+                        Card(title: L("主动降噪", "Active noise cancelling"), symbol: "ear") {
+                            Picker(L("模式", "Mode"), selection: $model.ancState) {
                                 ForEach(AncState.allCases) { Text($0.displayName).tag($0) }
                             }
                             .pickerStyle(.segmented)
                             if model.ancState == .on {
-                                Stepper("强度 \(model.ancLevel)", value: $model.ancLevel, in: 0...10)
+                                Stepper(L("强度 \(model.ancLevel)", "Strength \(model.ancLevel)"), value: $model.ancLevel, in: 0...10)
                             }
                             ApplyButton(busy: model.busy) { await model.applyAnc() }
                         }
@@ -179,9 +179,9 @@ struct AudioView: View {
     }
 
     private var equalizerCard: some View {
-        Card(title: "均衡器", symbol: "slider.vertical.3") {
+        Card(title: L("均衡器", "Equaliser"), symbol: "slider.vertical.3") {
             if model.state.eqPreset != nil {
-                Picker("预设", selection: Binding(get: { model.preset }, set: { value in
+                Picker(L("预设", "Preset"), selection: Binding(get: { model.preset }, set: { value in
                     model.preset = value
                     Task { await model.applyPreset() }
                 })) {
@@ -201,27 +201,27 @@ struct AudioView: View {
                         .frame(maxWidth: .infinity)
                     }
                 }
-                ApplyButton("应用均衡器", busy: model.busy) { await model.applyBands() }
+                ApplyButton(L("应用均衡器", "Apply EQ"), busy: model.busy) { await model.applyBands() }
             }
         }
     }
 
     private var microphoneCard: some View {
-        Card(title: "麦克风", symbol: "mic") {
+        Card(title: L("麦克风", "Microphone"), symbol: "mic") {
             if model.state.micMuted != nil {
-                Toggle("静音", isOn: Binding(get: { model.micMuted }, set: { value in
+                Toggle(L("静音", "Mute"), isOn: Binding(get: { model.micMuted }, set: { value in
                     model.micMuted = value
                     Task { await model.applyMicMute() }
                 }))
             }
             if model.state.noiseSuppression != nil {
-                Toggle("降噪", isOn: Binding(get: { model.noiseSuppression }, set: { value in
+                Toggle(L("降噪", "Noise suppression"), isOn: Binding(get: { model.noiseSuppression }, set: { value in
                     model.noiseSuppression = value
                     Task { await model.applyNoiseSuppression() }
                 }))
             }
             if model.state.micVolume != nil {
-                LabeledSlider(title: "音量", value: $model.micVolume, range: 0...100)
+                LabeledSlider(title: L("音量", "Volume"), value: $model.micVolume, range: 0...100)
                 ApplyButton(busy: model.busy) { await model.applyMicVolume() }
             }
         }
@@ -252,9 +252,9 @@ struct KrakenLightingCard: View {
     @Bindable var model: KrakenModel
 
     var body: some View {
-        Card(title: "耳机灯光", symbol: "sparkles") {
+        Card(title: L("耳机灯光", "Headset lighting"), symbol: "sparkles") {
             LightingEditor(settings: $model.settings, effects: model.device.model.effects)
-            ApplyButton("应用灯效", busy: model.busy) { await model.apply() }
+            ApplyButton(L("应用灯效", "Apply Effect"), busy: model.busy) { await model.apply() }
             StatusBanner(status: model.status, error: model.error)
         }
     }
@@ -266,9 +266,9 @@ struct KrakenView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                PageHeader(title: model.device.model.name, subtitle: "耳机 · \(pidText(model.device.productId)) · 37 字节输出报告",
+                PageHeader(title: model.device.model.name, subtitle: L("耳机 · \(pidText(model.device.productId)) · 37 字节输出报告", "Headset · \(pidText(model.device.productId)) · 37-byte output report"),
                            symbol: DeviceCategory.headset.symbolName, battery: nil, charging: nil, busy: model.busy, reload: nil)
-                Text("Kraken 的灯光通道只能写入，无法读回当前状态；音频、麦克风和 EQ 不在此通道上。")
+                Text(L("Kraken 的灯光通道只能写入，无法读回当前状态；音频、麦克风和 EQ 不在此通道上。", "The Kraken lighting channel is write-only, so the current state cannot be read back; audio, microphone and EQ are not on this channel."))
                     .font(.callout).foregroundStyle(.secondary)
                 CardGrid {
                     KrakenLightingCard(model: model)
@@ -288,20 +288,20 @@ struct BlackSharkView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 PageHeader(title: model.device.name,
-                           subtitle: "耳机 · \(pidText(model.device.productId)) · \(model.device.wireless ? "2.4 GHz" : "有线")",
+                           subtitle: L("耳机 · \(pidText(model.device.productId)) · \(model.device.wireless ? "2.4 GHz" : "有线")", "Headset · \(pidText(model.device.productId)) · \(model.device.wireless ? "2.4 GHz" : "Wired")"),
                            symbol: DeviceCategory.headset.symbolName, battery: model.state.batteryPercent,
                            charging: model.state.charging, busy: model.busy, reload: { await model.load() })
                 StatusBanner(status: model.status, error: model.error)
                 CardGrid {
                     if model.state.sidetone != nil {
-                        Card(title: "侧音", symbol: "waveform") {
-                            LabeledSlider(title: "级别", value: $model.sidetone, range: 0...15)
+                        Card(title: L("侧音", "Sidetone"), symbol: "waveform") {
+                            LabeledSlider(title: L("级别", "Level"), value: $model.sidetone, range: 0...15)
                             ApplyButton(busy: model.busy) { await model.applySidetone() }
                         }
                     }
                     if model.device.supportsThx, model.state.thx != nil {
-                        Card(title: "THX 空间音效", symbol: "person.wave.2") {
-                            Toggle("启用", isOn: Binding(get: { model.thx }, set: { value in
+                        Card(title: L("THX 空间音效", "THX Spatial Audio"), symbol: "person.wave.2") {
+                            Toggle(L("启用", "Enable"), isOn: Binding(get: { model.thx }, set: { value in
                                 model.thx = value
                                 Task { await model.applyThx() }
                             }))
@@ -309,27 +309,27 @@ struct BlackSharkView: View {
                         }
                     }
                     if let mode = model.state.ancMode {
-                        Card(title: "降噪", symbol: "ear") {
+                        Card(title: L("降噪", "Noise suppression"), symbol: "ear") {
                             if model.device.supportsAncWrite {
-                                Picker("模式", selection: $model.ancMode) {
+                                Picker(L("模式", "Mode"), selection: $model.ancMode) {
                                     ForEach(BlackSharkAncMode.allCases) { Text($0.displayName).tag($0) }
                                 }
                                 .pickerStyle(.segmented)
                                 if model.ancMode == .anc {
-                                    Stepper("强度 \(model.ancLevel)", value: $model.ancLevel, in: 1...4)
+                                    Stepper(L("强度 \(model.ancLevel)", "Strength \(model.ancLevel)"), value: $model.ancLevel, in: 1...4)
                                 }
                                 ApplyButton(busy: model.busy) { await model.applyAnc() }
                             } else {
-                                InfoRow(label: "当前模式", value: mode.displayName)
-                                Text("这款耳机只上报降噪模式、不上报强度，为避免改掉你的设置，这里只显示状态；请用耳机上的按键切换。")
+                                InfoRow(label: L("当前模式", "Current mode"), value: mode.displayName)
+                                Text(L("这款耳机只上报降噪模式、不上报强度，为避免改掉你的设置，这里只显示状态；请用耳机上的按键切换。", "This headset reports its noise-cancelling mode but not the level, so to avoid changing your setting it is shown read-only; use the buttons on the headset to switch."))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         }
                     }
                     if model.state.gameChat != nil {
-                        Card(title: "游戏 / 聊天平衡", symbol: "dial.medium") {
-                            LabeledSlider(title: "平衡", value: $model.gameChat, range: 0...20) { value in
-                                value < 10 ? "偏游戏 \(10 - Int(value))" : value > 10 ? "偏聊天 \(Int(value) - 10)" : "居中"
+                        Card(title: L("游戏 / 聊天平衡", "Game / chat balance"), symbol: "dial.medium") {
+                            LabeledSlider(title: L("平衡", "Balance"), value: $model.gameChat, range: 0...20) { value in
+                                value < 10 ? L("偏游戏 \(10 - Int(value))", "Game +\(10 - Int(value))") : value > 10 ? L("偏聊天 \(Int(value) - 10)", "Chat +\(Int(value) - 10)") : L("居中", "Centred")
                             }
                             ApplyButton(busy: model.busy) { await model.applyGameChat() }
                         }
@@ -352,20 +352,20 @@ struct UnavailableView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                PageHeader(title: device.name, subtitle: "\(pidText(device.productId)) · \(device.recognised ? "已识别，未能接管" : "未知型号")",
+                PageHeader(title: device.name, subtitle: L("\(pidText(device.productId)) · \(device.recognised ? "已识别，未能接管" : "未知型号")", "\(pidText(device.productId)) · \(device.recognised ? "Recognised, not controlled" : "Unknown model")"),
                            symbol: device.category?.symbolName ?? "questionmark.circle", battery: nil, charging: nil,
                            busy: false, reload: nil)
-                Card(title: "原因", symbol: "exclamationmark.triangle") {
+                Card(title: L("原因", "Reason"), symbol: "exclamationmark.triangle") {
                     Text(device.reason).textSelection(.enabled)
                     if device.recognised {
-                        Text("请先退出其他可能占用设备的雷蛇控制程序，或在“设置”中切换通信方式后重新扫描。")
+                        Text(L("请先退出其他可能占用设备的雷蛇控制程序，或在“设置”中切换通信方式后重新扫描。", "Quit other Razer software that may be using the device, or switch the connection in Settings, then rescan."))
                             .font(.callout).foregroundStyle(.secondary)
                     } else {
-                        Text("这个型号不在 OpenSynapse 的设备列表里。可以把下面的接口信息提交给上游项目，帮助适配。")
+                        Text(L("这个型号不在 OpenSynapse 的设备列表里。可以把下面的接口信息提交给上游项目，帮助适配。", "This model is not in OpenSynapse's device list. You can send the interface details below to the upstream project to help add it."))
                             .font(.callout).foregroundStyle(.secondary)
                     }
                 }
-                Card(title: "HID 接口", symbol: "cable.connector.horizontal") {
+                Card(title: L("HID 接口", "HID interfaces"), symbol: "cable.connector.horizontal") {
                     ForEach(device.interfaces, id: \.self) { line in
                         Text(line).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                     }
@@ -382,15 +382,15 @@ struct LampArrayCard: View {
     @Bindable var model: LampArrayModel
 
     var body: some View {
-        Card(title: "灯光（\(model.device.lampCount) 个灯）", symbol: "sparkles") {
-            RazerColorPicker(title: "颜色", color: $model.color)
-            LabeledSlider(title: "亮度", value: $model.brightness, range: 0...100) { "\(Int($0))%" }
+        Card(title: L("灯光（\(model.device.lampCount) 个灯）", "Lights (\(model.device.lampCount) lamps)"), symbol: "sparkles") {
+            RazerColorPicker(title: L("颜色", "Colour"), color: $model.color)
+            LabeledSlider(title: L("亮度", "Brightness"), value: $model.brightness, range: 0...100) { "\(Int($0))%" }
             HStack {
-                Button("关灯") { Task { await model.off() } }
-                Button("恢复设备自带灯效") { Task { await model.restoreDeviceEffect() } }
-                    .help("把灯光交还给设备内存储的灯效（HID LampArray 自主模式）")
+                Button(L("关灯", "Lights off")) { Task { await model.off() } }
+                Button(L("恢复设备自带灯效", "Restore Device Effect")) { Task { await model.restoreDeviceEffect() } }
+                    .help(L("把灯光交还给设备内存储的灯效（HID LampArray 自主模式）", "Hand the lights back to the effect stored on the device (HID LampArray autonomous mode)"))
                 Spacer()
-                Button("应用") { Task { await model.apply() } }
+                Button(L("应用", "Apply")) { Task { await model.apply() } }
                     .buttonStyle(.borderedProminent)
                     .tint(.razer)
             }
@@ -406,9 +406,9 @@ struct LampArrayView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                PageHeader(title: model.device.name, subtitle: "\(pidText(model.device.productId)) · HID LampArray 灯光",
+                PageHeader(title: model.device.name, subtitle: L("\(pidText(model.device.productId)) · HID LampArray 灯光", "\(pidText(model.device.productId)) · HID LampArray lighting"),
                            symbol: "lightbulb.led", battery: nil, charging: nil, busy: model.busy, reload: nil)
-                Text("通过标准 HID LampArray（Windows“动态光效”使用的同一接口）控制灯光。设备不提供当前颜色的回读。")
+                Text(L("通过标准 HID LampArray（Windows“动态光效”使用的同一接口）控制灯光。设备不提供当前颜色的回读。", "Lighting is controlled through standard HID LampArray (the interface Windows Dynamic Lighting uses). The device does not report its current colour."))
                     .font(.callout).foregroundStyle(.secondary)
                 CardGrid {
                     LampArrayCard(model: model)

@@ -10,9 +10,9 @@ public enum TransportPreference: String, CaseIterable, Sendable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .automatic: "自动（HID 优先，失败时改用 USB 控制传输）"
-        case .hid: "仅 HID 特性报告"
-        case .usbControl: "仅 USB 控制传输"
+        case .automatic: L("自动（HID 优先，失败时改用 USB 控制传输）", "Automatic (HID first, USB control transfers on failure)")
+        case .hid: L("仅 HID 特性报告", "HID feature reports only")
+        case .usbControl: L("仅 USB 控制传输", "USB control transfers only")
         }
     }
 }
@@ -26,13 +26,13 @@ protocol RawFeatureIO: AnyObject {
 
 private func describe(_ result: IOReturn) -> String {
     switch result {
-    case kIOReturnNotPermitted: "kIOReturnNotPermitted（未获得权限）"
-    case kIOReturnExclusiveAccess: "kIOReturnExclusiveAccess（被其他程序独占）"
-    case kIOReturnNotResponding: "kIOReturnNotResponding（设备无响应）"
-    case kIOReturnNoDevice: "kIOReturnNoDevice（设备已断开）"
-    case kIOReturnUnsupported: "kIOReturnUnsupported（不支持）"
-    case kIOReturnTimeout: "kIOReturnTimeout（超时）"
-    case kIOReturnAborted: "kIOReturnAborted（已中止）"
+    case kIOReturnNotPermitted: L("kIOReturnNotPermitted（未获得权限）", "kIOReturnNotPermitted (no permission)")
+    case kIOReturnExclusiveAccess: L("kIOReturnExclusiveAccess（被其他程序独占）", "kIOReturnExclusiveAccess (held exclusively by another program)")
+    case kIOReturnNotResponding: L("kIOReturnNotResponding（设备无响应）", "kIOReturnNotResponding (device not responding)")
+    case kIOReturnNoDevice: L("kIOReturnNoDevice（设备已断开）", "kIOReturnNoDevice (device disconnected)")
+    case kIOReturnUnsupported: L("kIOReturnUnsupported（不支持）", "kIOReturnUnsupported (unsupported)")
+    case kIOReturnTimeout: L("kIOReturnTimeout（超时）", "kIOReturnTimeout (timed out)")
+    case kIOReturnAborted: L("kIOReturnAborted（已中止）", "kIOReturnAborted (aborted)")
     default: String(format: "IOReturn 0x%08X", UInt32(bitPattern: result))
     }
 }
@@ -54,13 +54,13 @@ final class HIDFeatureIO: RawFeatureIO {
 
     func ensureOpen() throws {
         guard !opened else { return }
-        guard let device = interface.device else { throw RazerError.transport("没有 HID 设备句柄") }
+        guard let device = interface.device else { throw RazerError.transport(L("没有 HID 设备句柄", "No HID device handle")) }
         let result = IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeNone))
         guard result == kIOReturnSuccess else {
             if result == kIOReturnNotPermitted {
-                throw RazerError.permissionDenied("打开 HID 接口需要“输入监控”权限：\(describe(result))")
+                throw RazerError.permissionDenied(L("打开 HID 接口需要“输入监控”权限：\(describe(result))", "Opening the HID interface needs the Input Monitoring permission: \(describe(result))"))
             }
-            throw RazerError.transport("无法打开 HID 接口：\(describe(result))")
+            throw RazerError.transport(L("无法打开 HID 接口：\(describe(result))", "Could not open the HID interface: \(describe(result))"))
         }
         opened = true
     }
@@ -71,7 +71,7 @@ final class HIDFeatureIO: RawFeatureIO {
             IOHIDDeviceSetReport(interface.device!, kIOHIDReportTypeFeature, 0, $0.baseAddress!, $0.count)
         }
         guard result == kIOReturnSuccess else {
-            throw RazerError.transport("SET_REPORT 失败：\(describe(result))")
+            throw RazerError.transport(L("SET_REPORT 失败：\(describe(result))", "SET_REPORT failed: \(describe(result))"))
         }
     }
 
@@ -83,7 +83,7 @@ final class HIDFeatureIO: RawFeatureIO {
             IOHIDDeviceGetReport(interface.device!, kIOHIDReportTypeFeature, 0, $0.baseAddress!, &size)
         }
         guard result == kIOReturnSuccess else {
-            throw RazerError.transport("GET_REPORT 失败：\(describe(result))")
+            throw RazerError.transport(L("GET_REPORT 失败：\(describe(result))", "GET_REPORT failed: \(describe(result))"))
         }
         return size >= length ? buffer : Array(buffer.prefix(Int(size)))
     }
@@ -94,7 +94,7 @@ final class HIDFeatureIO: RawFeatureIO {
 final class USBControlFeatureIO: RawFeatureIO {
     let interface: HIDInterface
     let interfaceIndex: UInt16
-    var label: String { "USB 控制传输 (wIndex=\(interfaceIndex))" }
+    var label: String { L("USB 控制传输 (wIndex=\(interfaceIndex))", "USB control transfer (wIndex=\(interfaceIndex))") }
 
     init(interface: HIDInterface, interfaceIndex: UInt16) {
         self.interface = interface
@@ -109,7 +109,7 @@ final class USBControlFeatureIO: RawFeatureIO {
                                    0x21, 0x09, 0x0300, interfaceIndex, $0.baseAddress, UInt16($0.count), &transferred)
         }
         guard result == kIOReturnSuccess else {
-            throw RazerError.transport("USB SET_REPORT 失败：\(describe(result))")
+            throw RazerError.transport(L("USB SET_REPORT 失败：\(describe(result))", "USB SET_REPORT failed: \(describe(result))"))
         }
     }
 
@@ -121,7 +121,7 @@ final class USBControlFeatureIO: RawFeatureIO {
                                    0xA1, 0x01, 0x0300, interfaceIndex, $0.baseAddress, UInt16($0.count), &transferred)
         }
         guard result == kIOReturnSuccess else {
-            throw RazerError.transport("USB GET_REPORT 失败：\(describe(result))")
+            throw RazerError.transport(L("USB GET_REPORT 失败：\(describe(result))", "USB GET_REPORT failed: \(describe(result))"))
         }
         return buffer
     }
@@ -228,7 +228,7 @@ public final class FeatureEndpoint: @unchecked Sendable {
             return try body(primary)
         } catch let error as RazerError {
             guard let fallback else { throw error }
-            DiagnosticLog.shared.write(tag, "\(primary.label) 失败（\(error.localizedDescription)），改用 \(fallback.label)")
+            DiagnosticLog.shared.write(tag, L("\(primary.label) 失败（\(error.localizedDescription)），改用 \(fallback.label)", "\(primary.label) failed (\(error.localizedDescription)), switching to \(fallback.label)"))
             stateLock.lock()
             primary = fallback
             self.fallback = nil
@@ -250,7 +250,7 @@ public final class FeatureEndpoint: @unchecked Sendable {
             } catch let error as RazerError {
                 if case .permissionDenied = error { throw error }
                 lastError = error.localizedDescription
-                DiagnosticLog.shared.write(tag, "  第 \(attempt) 次：\(lastError!)")
+                DiagnosticLog.shared.write(tag, L("  第 \(attempt) 次：\(lastError!)", "  Attempt \(attempt): \(lastError!)"))
                 Thread.sleep(forTimeInterval: 0.01)
                 continue
             }
@@ -260,45 +260,45 @@ public final class FeatureEndpoint: @unchecked Sendable {
                 bytes = try withFallback { try $0.getFeature(length: RazerReport.length) }
             } catch let error as RazerError {
                 lastError = error.localizedDescription
-                DiagnosticLog.shared.write(tag, "  第 \(attempt) 次：\(lastError!)")
+                DiagnosticLog.shared.write(tag, L("  第 \(attempt) 次：\(lastError!)", "  Attempt \(attempt): \(lastError!)"))
                 Thread.sleep(forTimeInterval: 0.01)
                 continue
             }
             guard bytes.count == RazerReport.length, let response = try? RazerReport(bytes: bytes),
                   request.matches(response: response, allowRemainingPacketsMismatch: allowRemainingPacketsMismatch)
             else {
-                lastError = "设备返回了错误、乱序或校验失败的报告；请关闭其他雷蛇控制软件后重试"
-                DiagnosticLog.shared.write(tag, "  第 \(attempt) 次：响应校验失败 \(bytes.prefix(12).hexString)")
+                lastError = L("设备返回了错误、乱序或校验失败的报告；请关闭其他雷蛇控制软件后重试", "The device returned an error, out-of-order or bad-checksum report; quit other Razer software and try again")
+                DiagnosticLog.shared.write(tag, L("  第 \(attempt) 次：响应校验失败 \(bytes.prefix(12).hexString)", "  Attempt \(attempt): response validation failed \(bytes.prefix(12).hexString)"))
                 Thread.sleep(forTimeInterval: 0.01)
                 continue
             }
             switch response.status {
             case 0x02:
-                DiagnosticLog.shared.write(tag, "← 成功 args=\(response.rawArguments.prefix(12).hexString)")
+                DiagnosticLog.shared.write(tag, L("← 成功 args=\(response.rawArguments.prefix(12).hexString)", "← OK args=\(response.rawArguments.prefix(12).hexString)"))
                 return response
             case 0x01:
                 // OpenRazer treats BUSY as an accepted command.
-                DiagnosticLog.shared.write(tag, "← 已接受（busy）")
+                DiagnosticLog.shared.write(tag, L("← 已接受（busy）", "← Accepted (busy)"))
                 return response
             case 0x05:
-                DiagnosticLog.shared.write(tag, "← 设备不支持此命令 (0x05)")
-                throw RazerError.notSupported("设备不支持此命令 (0x05)")
+                DiagnosticLog.shared.write(tag, L("← 设备不支持此命令 (0x05)", "← The device does not support this command (0x05)"))
+                throw RazerError.notSupported(L("设备不支持此命令 (0x05)", "The device does not support this command (0x05)"))
             case 0x03:
                 rejected += 1
-                lastError = "设备拒绝了请求 (0x03)"
+                lastError = L("设备拒绝了请求 (0x03)", "The device rejected the request (0x03)")
             case 0x04:
                 silent += 1
-                lastError = "设备没有回答此命令 (0x04)"
+                lastError = L("设备没有回答此命令 (0x04)", "The device did not answer this command (0x04)")
             default:
-                lastError = String(format: "设备响应状态 0x%02X", response.status)
+                lastError = String(format: L("设备响应状态 0x%02X", "Device response status 0x%02X"), response.status)
             }
-            DiagnosticLog.shared.write(tag, "  第 \(attempt) 次：\(lastError!)")
+            DiagnosticLog.shared.write(tag, L("  第 \(attempt) 次：\(lastError!)", "  Attempt \(attempt): \(lastError!)"))
             Thread.sleep(forTimeInterval: 0.01)
         }
         if rejected == 5 { throw RazerError.rejected(lastError ?? "") }
         // A dead endpoint fails every command; one silent command means the firmware lacks it.
         if silent == 5 { throw RazerError.timeout(lastError ?? "") }
-        throw RazerError.transport(lastError ?? "特性报告查询失败")
+        throw RazerError.transport(lastError ?? L("特性报告查询失败", "Feature report query failed"))
     }
 }
 
@@ -352,12 +352,12 @@ public final class ReportChannel: @unchecked Sendable {
 
     private func ensureOpen() throws {
         guard !opened, interface.simulated == nil else { return }
-        guard let device = interface.device else { throw RazerError.transport("没有 HID 设备句柄") }
+        guard let device = interface.device else { throw RazerError.transport(L("没有 HID 设备句柄", "No HID device handle")) }
         let result = IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeNone))
         guard result == kIOReturnSuccess else {
             throw result == kIOReturnNotPermitted
-                ? RazerError.permissionDenied("打开 HID 接口需要“输入监控”权限")
-                : RazerError.transport("无法打开 HID 接口：\(describe(result))")
+                ? RazerError.permissionDenied(L("打开 HID 接口需要“输入监控”权限", "Opening the HID interface needs the Input Monitoring permission"))
+                : RazerError.transport(L("无法打开 HID 接口：\(describe(result))", "Could not open the HID interface: \(describe(result))"))
         }
         let size = max(interface.maxInputReportSize, 64)
         let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: size)
@@ -396,7 +396,7 @@ public final class ReportChannel: @unchecked Sendable {
             IOHIDDeviceSetReport(interface.device!, kIOHIDReportTypeOutput, CFIndex(bytes[0]), $0.baseAddress!, $0.count)
         }
         guard result == kIOReturnSuccess else {
-            throw RazerError.transport("输出报告失败：\(describe(result))")
+            throw RazerError.transport(L("输出报告失败：\(describe(result))", "Output report failed: \(describe(result))"))
         }
     }
 
@@ -405,7 +405,7 @@ public final class ReportChannel: @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async {
                 do {
-                    DiagnosticLog.shared.write(self.tag, "→ 特性报告 \(bytes.prefix(16).hexString)")
+                    DiagnosticLog.shared.write(self.tag, L("→ 特性报告 \(bytes.prefix(16).hexString)", "→ Feature report \(bytes.prefix(16).hexString)"))
                     if let simulated = self.interface.simulated {
                         simulated.handleFeature(bytes)
                         return continuation.resume()
@@ -415,7 +415,7 @@ public final class ReportChannel: @unchecked Sendable {
                         IOHIDDeviceSetReport(self.interface.device!, kIOHIDReportTypeFeature, CFIndex(bytes[0]), $0.baseAddress!, $0.count)
                     }
                     guard result == kIOReturnSuccess else {
-                        throw RazerError.transport("特性报告写入失败：\(describe(result))")
+                        throw RazerError.transport(L("特性报告写入失败：\(describe(result))", "Feature report write failed: \(describe(result))"))
                     }
                     continuation.resume()
                 } catch {
@@ -440,10 +440,10 @@ public final class ReportChannel: @unchecked Sendable {
                         IOHIDDeviceGetReport(self.interface.device!, kIOHIDReportTypeFeature, CFIndex(reportId), $0.baseAddress!, &size)
                     }
                     guard result == kIOReturnSuccess else {
-                        throw RazerError.transport("特性报告读取失败：\(describe(result))")
+                        throw RazerError.transport(L("特性报告读取失败：\(describe(result))", "Feature report read failed: \(describe(result))"))
                     }
                     let bytes = Array(buffer.prefix(Int(size)))
-                    DiagnosticLog.shared.write(self.tag, "← 特性报告 \(bytes.prefix(24).hexString)")
+                    DiagnosticLog.shared.write(self.tag, L("← 特性报告 \(bytes.prefix(24).hexString)", "← Feature report \(bytes.prefix(24).hexString)"))
                     continuation.resume(returning: bytes)
                 } catch {
                     continuation.resume(throwing: error)
@@ -457,7 +457,7 @@ public final class ReportChannel: @unchecked Sendable {
             queue.async {
                 do {
                     for report in reports {
-                        DiagnosticLog.shared.write(self.tag, "→ 输出报告 \(report.prefix(16).hexString)")
+                        DiagnosticLog.shared.write(self.tag, L("→ 输出报告 \(report.prefix(16).hexString)", "→ Output report \(report.prefix(16).hexString)"))
                         try self.writeOutput(report)
                         if let wait = delay?(report), wait > 0 { Thread.sleep(forTimeInterval: wait) }
                     }
@@ -479,7 +479,7 @@ public final class ReportChannel: @unchecked Sendable {
                     self.received.removeAll()
                     self.lock.unlock()
                     while self.signal.wait(timeout: .now()) == .success {}
-                    DiagnosticLog.shared.write(self.tag, "→ 输出报告 \(report.prefix(16).hexString)")
+                    DiagnosticLog.shared.write(self.tag, L("→ 输出报告 \(report.prefix(16).hexString)", "→ Output report \(report.prefix(16).hexString)"))
                     try self.writeOutput(report)
                     let deadline = Date().addingTimeInterval(timeout)
                     while Date() < deadline {
@@ -489,12 +489,12 @@ public final class ReportChannel: @unchecked Sendable {
                         self.received.removeAll()
                         self.lock.unlock()
                         if let hit = reports.first(where: match) {
-                            DiagnosticLog.shared.write(self.tag, "← 输入报告 \(hit.prefix(20).hexString)")
+                            DiagnosticLog.shared.write(self.tag, L("← 输入报告 \(hit.prefix(20).hexString)", "← Input report \(hit.prefix(20).hexString)"))
                             continuation.resume(returning: hit)
                             return
                         }
                     }
-                    DiagnosticLog.shared.write(self.tag, "← 超时未收到匹配的输入报告")
+                    DiagnosticLog.shared.write(self.tag, L("← 超时未收到匹配的输入报告", "← Timed out waiting for a matching input report"))
                     continuation.resume(returning: nil)
                 } catch {
                     continuation.resume(throwing: error)

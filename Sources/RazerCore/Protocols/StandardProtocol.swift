@@ -130,14 +130,14 @@ enum StandardProtocol {
         switch args[2] {
         case 0: return false
         case 1: return true
-        default: throw RazerError.invalidResponse("无效的灯光开关状态")
+        default: throw RazerError.invalidResponse(L("无效的灯光开关状态", "Invalid lighting on/off state"))
         }
     }
 
     static func ledArguments(_ response: RazerReport, minimumLength: Int, storage: UInt8, zone: UInt8) throws -> [UInt8] {
         let args = Array(try response.successfulArguments(minimumLength: minimumLength))
         guard args[0] == storage, args[1] == zone else {
-            throw RazerError.invalidResponse("灯光响应与请求的存储区或灯区不匹配")
+            throw RazerError.invalidResponse(L("灯光响应与请求的存储区或灯区不匹配", "The lighting response does not match the requested storage or zone"))
         }
         return args
     }

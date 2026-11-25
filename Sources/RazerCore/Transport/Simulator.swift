@@ -195,7 +195,7 @@ public final class SimulatedDevice: @unchecked Sendable {
 final class SimulatedFeatureIO: RawFeatureIO {
     let device: SimulatedDevice
     private var last: [UInt8]?
-    var label: String { "模拟设备" }
+    var label: String { L("模拟设备", "Simulated device") }
 
     init(device: SimulatedDevice) {
         self.device = device
@@ -206,7 +206,7 @@ final class SimulatedFeatureIO: RawFeatureIO {
     }
 
     func getFeature(length: Int) throws -> [UInt8] {
-        guard let last else { throw RazerError.transport("没有待读取的响应") }
+        guard let last else { throw RazerError.transport(L("没有待读取的响应", "No pending response to read")) }
         return last
     }
 }

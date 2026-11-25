@@ -161,10 +161,10 @@ public enum ProductLists {
 
     /// Headsets that speak the BlackShark 64-byte report 0x02 protocol, verified on hardware.
     /// `wireless` is the link byte to try first: the control hub relays to the headset on 0x80.
-    public static let blackSharkProtocolHeadsets: [UInt16: (name: String, thx: Bool, ancWrite: Bool, wireless: Bool)] = [
+    public static var blackSharkProtocolHeadsets: [UInt16: (name: String, thx: Bool, ancWrite: Bool, wireless: Bool)] { [
         0x0567: ("Razer Kraken V4 Pro", false, false, false),
-        0x0568: ("Razer Kraken V4 Pro（经控制终端）", false, false, true),
-    ]
+        0x0568: (L("Razer Kraken V4 Pro（经控制终端）", "Razer Kraken V4 Pro (via control hub)"), false, false, true),
+    ] }
 
     /// Names for LampArray-only devices.
     public static let lampArrayNames: [UInt16: String] = [:]
@@ -172,7 +172,7 @@ public enum ProductLists {
     public static func blackSharkName(_ productId: UInt16) -> String {
         switch productId {
         case 0x0576, 0x101C: "Razer BlackShark V3 Pro (USB)"
-        case 0x101B: "Razer BlackShark V3 Pro (2.4 GHz 接收器)"
+        case 0x101B: L("Razer BlackShark V3 Pro (2.4 GHz 接收器)", "Razer BlackShark V3 Pro (2.4 GHz receiver)")
         case 0x0577: "Razer BlackShark V3 Pro (2.4 GHz)"
         default: "Razer BlackShark V3 Pro"
         }

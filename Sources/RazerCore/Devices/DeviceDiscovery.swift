@@ -57,12 +57,12 @@ public enum DeviceDiscovery {
         let tagPid = String(format: "%04X", pid)
         let summaries = group.interfaces.map(\.summary)
         for line in summaries {
-            DiagnosticLog.shared.write("scan-\(tagPid)", "接口 \(line)")
+            DiagnosticLog.shared.write("scan-\(tagPid)", L("接口 \(line)", "Interface \(line)"))
         }
         let featureInterfaces = group.interfaces.filter(\.hasRazerFeatureReport)
 
         func unavailable(_ name: String, _ category: DeviceCategory?, recognised: Bool, _ reason: String) -> DiscoveredDevice {
-            DiagnosticLog.shared.write("scan-\(tagPid)", "未能接管：\(reason)")
+            DiagnosticLog.shared.write("scan-\(tagPid)", L("未能接管：\(reason)", "Not controlled: \(reason)"))
             return .unavailable(UnavailableDevice(productId: pid, name: name, category: category, recognised: recognised,
                                                   reason: reason, interfaces: summaries))
         }
@@ -87,14 +87,14 @@ public enum DeviceDiscovery {
         if let definition = catalog.find(productId: pid) {
             guard !featureInterfaces.isEmpty else {
                 return unavailable(definition.displayName, definition.category, recognised: true,
-                                   "没有找到 90 字节的 HID 控制接口")
+                                   L("没有找到 90 字节的 HID 控制接口", "No 90-byte HID control interface found"))
             }
-            var lastError = "没有可用于探测的只读命令"
+            var lastError = L("没有可用于探测的只读命令", "No read-only command available for probing")
             for candidate in featureInterfaces {
                 let endpoint = FeatureEndpoint(interface: candidate, preference: preference, tag: "openrazer-\(tagPid)")
                 do {
                     if try await OpenRazerDevice.probe(definition, endpoint: endpoint) {
-                        DiagnosticLog.shared.write("scan-\(tagPid)", "已解析控制接口 \(candidate.usageText) 经 \(endpoint.pathDescription)")
+                        DiagnosticLog.shared.write("scan-\(tagPid)", L("已解析控制接口 \(candidate.usageText) 经 \(endpoint.pathDescription)", "Control interface resolved: \(candidate.usageText) via \(endpoint.pathDescription)"))
                         let adapted = await OpenRazerDevice.adaptPollingProtocol(definition, endpoint: endpoint)
                         return .openRazer(OpenRazerDevice(definition: adapted, endpoint: endpoint))
                     }
@@ -108,7 +108,7 @@ public enum DeviceDiscovery {
         if let name = ProductLists.keyboards25[pid] {
             guard let endpoint = await pickEndpoint(featureInterfaces, preference, "keyboard-\(tagPid)", probe: KeyboardProtocol25.getFirmware)
             else {
-                return unavailable(name, .keyboard, recognised: true, "没有找到 90 字节的 HID 控制接口")
+                return unavailable(name, .keyboard, recognised: true, L("没有找到 90 字节的 HID 控制接口", "No 90-byte HID control interface found"))
             }
             return .keyboard(Keyboard25Device(productId: pid, name: name, endpoint: endpoint))
         }
@@ -128,7 +128,7 @@ public enum DeviceDiscovery {
                 return .audio(HeadsetAudioDevice(productId: pid, name: name, endpoint: endpoint), lighting: kraken)
             }
             if kraken == nil {
-                return unavailable(name, ProductLists.audioCategory(pid), recognised: true, "没有找到 90 字节的 HID 控制接口")
+                return unavailable(name, ProductLists.audioCategory(pid), recognised: true, L("没有找到 90 字节的 HID 控制接口", "No 90-byte HID control interface found"))
             }
         }
 
@@ -136,22 +136,22 @@ public enum DeviceDiscovery {
             return .kraken(kraken)
         }
         if let model = krakenModel {
-            return unavailable(model.name, .headset, recognised: true, "没有找到 37 字节的输出报告接口")
+            return unavailable(model.name, .headset, recognised: true, L("没有找到 37 字节的输出报告接口", "No 37-byte output report interface found"))
         }
 
         if let product = ProductLists.chromaStandard[pid] {
             guard let endpoint = await pickEndpoint(featureInterfaces, preference, "chroma-\(tagPid)", probe: ChromaProtocol.getEffect)
             else {
-                return unavailable(product.name, product.category, recognised: true, "没有找到 90 字节的 HID 控制接口")
+                return unavailable(product.name, product.category, recognised: true, L("没有找到 90 字节的 HID 控制接口", "No 90-byte HID control interface found"))
             }
             return .chroma(ChromaDevice(productId: pid, name: product.name, category: product.category, legacy: false, endpoint: endpoint))
         }
 
-        let name = ProductLists.lampArrayNames[pid] ?? group.interfaces.compactMap(\.productName).first ?? "未知雷蛇设备"
+        let name = ProductLists.lampArrayNames[pid] ?? group.interfaces.compactMap(\.productName).first ?? L("未知雷蛇设备", "Unknown Razer device")
         if let lighting = await lampArray(group, pid: pid, name: name, reuse: nil) {
             return .lampArray(lighting)
         }
-        return unavailable(name, nil, recognised: false, "此设备不在支持列表中")
+        return unavailable(name, nil, recognised: false, L("此设备不在支持列表中", "This device is not in the supported list"))
     }
 
     /// Looks for a HID LampArray on any interface with a feature report large enough to hold
@@ -161,7 +161,7 @@ public enum DeviceDiscovery {
             let channel = reuse?.interface.registryId == item.registryId ? reuse!
                 : ReportChannel(interface: item, tag: String(format: "lamparray-%04X", pid))
             if let attributes = await LampArrayDevice.probe(channel) {
-                DiagnosticLog.shared.write(String(format: "scan-%04X", pid), "HID LampArray：\(attributes.lampCount) 个灯")
+                DiagnosticLog.shared.write(String(format: "scan-%04X", pid), L("HID LampArray：\(attributes.lampCount) 个灯", "HID LampArray: \(attributes.lampCount) lamps"))
                 return LampArrayDevice(productId: pid, name: name, channel: channel, attributes: attributes)
             }
         }
@@ -181,7 +181,7 @@ public enum DeviceDiscovery {
         for candidate in candidates {
             let endpoint = FeatureEndpoint(interface: candidate, preference: preference, tag: tag)
             if let report = try? probe(endpoint.nextTransactionId()),
-               (try? await endpoint.query(report, wait: 0.020, label: "探测接口")) != nil {
+               (try? await endpoint.query(report, wait: 0.020, label: L("探测接口", "Probing interface"))) != nil {
                 return endpoint
             }
         }

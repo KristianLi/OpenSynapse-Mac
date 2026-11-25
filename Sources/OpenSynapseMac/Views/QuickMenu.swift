@@ -12,7 +12,7 @@ struct DeviceQuickMenu: View {
         Menu {
             controls
             Divider()
-            Button("打开设备页面", action: open)
+            Button(L("打开设备页面", "Open Device Page"), action: open)
         } label: {
             if let battery = item.page.batteryPercent {
                 Label("\(item.page.title)  \(battery)%", systemImage: item.page.symbol)
@@ -67,7 +67,7 @@ private struct ProblemLine: View {
 
 private func batteryLine(_ percent: Int?, charging: Bool?) -> String? {
     guard let percent else { return nil }
-    return "电量 \(percent)%" + (charging == true ? "（充电中）" : "")
+    return L("电量 \(percent)%", "Battery \(percent)%") + (charging == true ? L("（充电中）", " (charging)") : "")
 }
 
 private let percentSteps = [0, 25, 50, 75, 100]
@@ -85,40 +85,40 @@ private struct OpenRazerQuickItems: View {
         Group {
             dpi
             if model.has(.pollingRateWrite) {
-                ChoiceMenu(title: "回报率：\(model.pollingRate) Hz", current: model.pollingRate,
+                ChoiceMenu(title: L("回报率：\(model.pollingRate) Hz", "Polling rate: \(model.pollingRate) Hz"), current: model.pollingRate,
                            options: model.device.pollingRateOptions.map { ("\($0) Hz", $0) }) { value in
                     Task { await model.applyPollingRate(value) }
                 }
             }
             ForEach(model.brightnessZones, id: \.zone) { caps in
                 let percent = model.brightnessPercent(caps.zone)
-                ChoiceMenu(title: "\(caps.zone.displayName)亮度：\(percent)%", current: percent,
-                           options: percentSteps.map { ($0 == 0 ? "关闭" : "\($0)%", $0) }) { value in
+                ChoiceMenu(title: L("\(caps.zone.displayName)亮度：\(percent)%", "\(caps.zone.displayName) brightness: \(percent)%"), current: percent,
+                           options: percentSteps.map { ($0 == 0 ? L("关闭", "Off") : "\($0)%", $0) }) { value in
                     Task { await model.applyBrightness(percent: value, zone: caps.zone) }
                 }
             }
             if !model.quickEffects.isEmpty {
-                Menu("灯效") {
+                Menu(L("灯效", "Lighting effect")) {
                     ForEach(model.quickEffects) { effect in
                         Button(effect.displayName) { Task { await model.applyEffectToAllZones(effect) } }
                     }
                 }
             }
             if model.has(.scrollModeWrite) {
-                ChoiceMenu(title: "滚轮模式：\(model.scrollMode.displayName)", current: model.scrollMode,
+                ChoiceMenu(title: L("滚轮模式：\(model.scrollMode.displayName)", "Scroll mode: \(model.scrollMode.displayName)"), current: model.scrollMode,
                            options: ScrollMode.allCases.map { ($0.displayName, $0) }) { value in
                     model.scrollMode = value
                     Task { await model.applyScrollMode() }
                 }
             }
             if model.has(.scrollAccelerationWrite) {
-                Toggle("滚轮加速", isOn: Binding(get: { model.scrollAcceleration }, set: { value in
+                Toggle(L("滚轮加速", "Scroll acceleration"), isOn: Binding(get: { model.scrollAcceleration }, set: { value in
                     model.scrollAcceleration = value
                     Task { await model.applyScrollAcceleration() }
                 }))
             }
             if model.has(.smartReelWrite) {
-                Toggle("智能滚轮", isOn: Binding(get: { model.smartReel }, set: { value in
+                Toggle(L("智能滚轮", "Smart Reel"), isOn: Binding(get: { model.smartReel }, set: { value in
                     model.smartReel = value
                     Task { await model.applySmartReel() }
                 }))
@@ -129,7 +129,7 @@ private struct OpenRazerQuickItems: View {
 
     @ViewBuilder private var dpi: some View {
         let current = model.state.dpi
-        let title = current.map { $0.x == $0.y ? "DPI：\($0.x)" : "DPI：\($0.x) × \($0.y)" } ?? "DPI"
+        let title = current.map { $0.x == $0.y ? L("DPI：\($0.x)", "DPI: \($0.x)") : L("DPI：\($0.x) × \($0.y)", "DPI: \($0.x) × \($0.y)") } ?? "DPI"
         if model.has(.dpiStagesWrite), let stages = model.state.dpiStages?.stages, !stages.isEmpty {
             ChoiceMenu(title: title, current: stages.first { $0.x == current?.x && $0.y == current?.y }?.number,
                        options: stages.map { ($0.x == $0.y ? "\($0.x)" : "\($0.x) × \($0.y)", $0.number) }) { number in
@@ -162,13 +162,13 @@ private struct KeyboardQuickItems: View {
         }
         Group {
             if model.state.pollingRate != nil {
-                ChoiceMenu(title: "回报率：\(model.pollingRate) Hz", current: model.pollingRate,
+                ChoiceMenu(title: L("回报率：\(model.pollingRate) Hz", "Polling rate: \(model.pollingRate) Hz"), current: model.pollingRate,
                            options: Keyboard25Device.pollingRateOptions.map { ("\($0) Hz", $0) }) { value in
                     Task { await model.applyPollingRate(value) }
                 }
             }
             if model.state.gameMode != nil {
-                Toggle("游戏模式", isOn: Binding(get: { model.gameMode }, set: { value in
+                Toggle(L("游戏模式", "Game mode"), isOn: Binding(get: { model.gameMode }, set: { value in
                     model.gameMode = value
                     Task { await model.applyGameMode() }
                 }))
@@ -185,15 +185,15 @@ private struct ChromaQuickItems: View {
     var body: some View {
         ProblemLine(error: model.identity ? model.error : nil)
         Group {
-            ChoiceMenu(title: "灯效：\(model.effect.displayName)", current: model.effect,
+            ChoiceMenu(title: L("灯效：\(model.effect.displayName)", "Effect: \(model.effect.displayName)"), current: model.effect,
                        options: model.device.supportedEffects.map { ($0.displayName, $0) }) { value in
                 model.effect = value
                 Task { await model.applyEffect() }
             }
             if model.state.brightnessPercent != nil {
                 let percent = Int(model.brightness.rounded())
-                ChoiceMenu(title: "亮度：\(percent)%", current: percent,
-                           options: percentSteps.map { ($0 == 0 ? "关闭" : "\($0)%", $0) }) { value in
+                ChoiceMenu(title: L("亮度：\(percent)%", "Brightness: \(percent)%"), current: percent,
+                           options: percentSteps.map { ($0 == 0 ? L("关闭", "Off") : "\($0)%", $0) }) { value in
                     model.brightness = Double(value)
                     Task { await model.applyBrightness() }
                 }
@@ -215,33 +215,33 @@ private struct AudioQuickItems: View {
         }
         Group {
             if model.state.micMuted != nil {
-                Toggle("麦克风静音", isOn: Binding(get: { model.micMuted }, set: { value in
+                Toggle(L("麦克风静音", "Microphone mute"), isOn: Binding(get: { model.micMuted }, set: { value in
                     model.micMuted = value
                     Task { await model.applyMicMute() }
                 }))
             }
             if model.state.noiseSuppression != nil {
-                Toggle("麦克风降噪", isOn: Binding(get: { model.noiseSuppression }, set: { value in
+                Toggle(L("麦克风降噪", "Mic noise suppression"), isOn: Binding(get: { model.noiseSuppression }, set: { value in
                     model.noiseSuppression = value
                     Task { await model.applyNoiseSuppression() }
                 }))
             }
             if model.state.ancState != nil {
-                ChoiceMenu(title: "主动降噪：\(model.ancState.displayName)", current: model.ancState,
+                ChoiceMenu(title: L("主动降噪：\(model.ancState.displayName)", "Active noise cancelling: \(model.ancState.displayName)"), current: model.ancState,
                            options: AncState.allCases.map { ($0.displayName, $0) }) { value in
                     model.ancState = value
                     Task { await model.applyAnc() }
                 }
             }
             if model.state.audioSource != nil {
-                ChoiceMenu(title: "音源：\(model.source.displayName)", current: model.source,
+                ChoiceMenu(title: L("音源：\(model.source.displayName)", "Audio source: \(model.source.displayName)"), current: model.source,
                            options: AudioSource.allCases.filter { $0 != .none }.map { ($0.displayName, $0) }) { value in
                     model.source = value
                     Task { await model.applySource() }
                 }
             }
             if model.state.eqPreset != nil {
-                ChoiceMenu(title: "均衡器预设", current: model.preset,
+                ChoiceMenu(title: L("均衡器预设", "EQ preset"), current: model.preset,
                            options: HeadsetAudioDevice.presets.map { ($0.name, $0.value) }) { value in
                     model.preset = value
                     Task { await model.applyPreset() }
@@ -257,7 +257,7 @@ private struct KrakenQuickItems: View {
 
     var body: some View {
         ProblemLine(error: model.error)
-        Menu("灯效") {
+        Menu(L("灯效", "Lighting effect")) {
             ForEach(model.device.model.effects.filter { $0 != .custom }) { effect in
                 Button(effect.displayName) {
                     model.settings.effect = effect
@@ -280,15 +280,15 @@ private struct BlackSharkQuickItems: View {
         Group {
             if model.state.sidetone != nil {
                 let level = Int(model.sidetone.rounded())
-                ChoiceMenu(title: "侧音：\(level == 0 ? "关闭" : "\(level)")", current: level,
-                           options: [0, 5, 10, 15].map { ($0 == 0 ? "关闭" : "\($0)", $0) }) { value in
+                ChoiceMenu(title: L("侧音：\(level == 0 ? "关闭" : "\(level)")", "Sidetone: \(level == 0 ? "Off" : "\(level)")"), current: level,
+                           options: [0, 5, 10, 15].map { ($0 == 0 ? L("关闭", "Off") : "\($0)", $0) }) { value in
                     model.sidetone = Double(value)
                     Task { await model.applySidetone() }
                 }
             }
             if model.state.gameChat != nil {
                 let balance = Int(model.gameChat.rounded())
-                ChoiceMenu(title: "游戏/聊天：\(Self.balanceName(balance))", current: balance,
+                ChoiceMenu(title: L("游戏/聊天：\(Self.balanceName(balance))", "Game/chat: \(Self.balanceName(balance))"), current: balance,
                            options: [0, 5, 10, 15, 20].map { (Self.balanceName($0), $0) }) { value in
                     model.gameChat = Double(value)
                     Task { await model.applyGameChat() }
@@ -296,17 +296,17 @@ private struct BlackSharkQuickItems: View {
             }
             if let mode = model.state.ancMode {
                 if model.device.supportsAncWrite {
-                    ChoiceMenu(title: "降噪：\(model.ancMode.displayName)", current: model.ancMode,
+                    ChoiceMenu(title: L("降噪：\(model.ancMode.displayName)", "Noise cancelling: \(model.ancMode.displayName)"), current: model.ancMode,
                                options: BlackSharkAncMode.allCases.map { ($0.displayName, $0) }) { value in
                         model.ancMode = value
                         Task { await model.applyAnc() }
                     }
                 } else {
-                    Text("降噪：\(mode.displayName)")
+                    Text(L("降噪：\(mode.displayName)", "Noise cancelling: \(mode.displayName)"))
                 }
             }
             if model.device.supportsThx, model.state.thx != nil {
-                Toggle("THX 空间音效", isOn: Binding(get: { model.thx }, set: { value in
+                Toggle(L("THX 空间音效", "THX Spatial Audio"), isOn: Binding(get: { model.thx }, set: { value in
                     model.thx = value
                     Task { await model.applyThx() }
                 }))
@@ -319,7 +319,7 @@ private struct BlackSharkQuickItems: View {
     }
 
     private static func balanceName(_ value: Int) -> String {
-        value < 10 ? "偏游戏 \(10 - value)" : value > 10 ? "偏聊天 \(value - 10)" : "居中"
+        value < 10 ? L("偏游戏 \(10 - value)", "Game +\(10 - value)") : value > 10 ? L("偏聊天 \(value - 10)", "Chat +\(value - 10)") : L("居中", "Centred")
     }
 }
 
@@ -327,9 +327,9 @@ private struct LampArrayQuickItems: View {
     let model: LampArrayModel
 
     var body: some View {
-        Menu("灯光") {
-            Button("关灯") { Task { await model.off() } }
-            Button("恢复设备自带灯效") { Task { await model.restoreDeviceEffect() } }
+        Menu(L("灯光", "Lights")) {
+            Button(L("关灯", "Lights off")) { Task { await model.off() } }
+            Button(L("恢复设备自带灯效", "Restore Device Effect")) { Task { await model.restoreDeviceEffect() } }
         }
         .disabled(model.busy)
     }
