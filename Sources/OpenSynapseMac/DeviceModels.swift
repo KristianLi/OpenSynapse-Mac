@@ -534,7 +534,7 @@ final class BlackSharkModel: PageModel {
             if let value = state.ancLevel { ancLevel = min(max(value, 1), 4) }
             if let value = state.gameChat { gameChat = Double(value) }
             error = nil
-            status = state.batteryPercent == nil ? "耳机没有回答，可能处于休眠或未开机" : "已读取设备状态"
+            status = state.batteryPercent == nil ? "耳机没有回答，可能处于休眠或未开机；开机后会自动连上" : "已读取设备状态"
         } catch {
             loaded = true
             self.error = "读取失败：\(error.localizedDescription)"

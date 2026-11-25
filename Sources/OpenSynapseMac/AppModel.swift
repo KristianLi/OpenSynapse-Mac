@@ -139,6 +139,7 @@ final class AppModel {
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var batteryTimer: Timer?
     @ObservationIgnored private var lastMenuRefresh: Date?
+    @ObservationIgnored private var headsetTimer: Timer?
 
     init(forceDemo: Bool = false) {
         demoMode = forceDemo || UserDefaults.standard.bool(forKey: "demoMode")
@@ -160,6 +161,11 @@ final class AppModel {
         })
         batteryTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refreshBatteries() }
+        }
+        // A hub stays plugged in while its headset is off; look for the headset often until it
+        // answers, instead of waiting for the two-minute battery refresh.
+        headsetTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            Task { @MainActor in await self?.refreshSilentHeadsets() }
         }
         Task { await rescan() }
     }
@@ -225,7 +231,19 @@ final class AppModel {
         if let last = lastMenuRefresh, Date().timeIntervalSince(last) < 3 { return }
         lastMenuRefresh = Date()
         for item in items {
-            if case .openRazer(let model) = item.page { await model.refreshQuick() }
+            switch item.page {
+            case .openRazer(let model): await model.refreshQuick()
+            case .blackShark(let model) where !model.busy: await model.load()
+            default: break
+            }
+        }
+    }
+
+    private func refreshSilentHeadsets() async {
+        for item in items {
+            if case .blackShark(let model) = item.page, model.loaded, !model.busy, model.state.batteryPercent == nil {
+                await model.load()
+            }
         }
     }
 
