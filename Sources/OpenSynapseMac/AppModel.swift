@@ -88,6 +88,13 @@ enum DevicePage {
         return true
     }
 
+    /// A known model that could not be taken over, for example a wireless mouse that was asleep
+    /// when it was scanned: the receiver answers 0x04 for it. Such devices are tried again.
+    var retryable: Bool {
+        if case .unavailable(let device) = self { return device.recognised }
+        return false
+    }
+
     func load() async {
         switch self {
         case .openRazer(let model): await model.load()
@@ -162,10 +169,10 @@ final class AppModel {
         batteryTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refreshBatteries() }
         }
-        // A hub stays plugged in while its headset is off; look for the headset often until it
-        // answers, instead of waiting for the two-minute battery refresh.
+        // Receivers and hubs stay plugged in while the mouse or headset behind them sleeps; look
+        // for it often until it answers, instead of waiting for the two-minute battery refresh.
         headsetTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
-            Task { @MainActor in await self?.refreshSilentHeadsets() }
+            Task { @MainActor in await self?.retryQuietDevices() }
         }
         Task { await rescan() }
     }
@@ -198,7 +205,8 @@ final class AppModel {
         var next: [DeviceItem] = []
         var fresh: [DeviceItem] = []
         for group in DeviceDiscovery.groups(interfaces) {
-            if let existing = items.first(where: { $0.id == group.key && $0.fingerprint == group.fingerprint }) {
+            if let existing = items.first(where: { $0.id == group.key && $0.fingerprint == group.fingerprint }),
+               !existing.page.retryable {
                 next.append(existing)
                 continue
             }
@@ -239,7 +247,8 @@ final class AppModel {
         }
     }
 
-    private func refreshSilentHeadsets() async {
+    private func retryQuietDevices() async {
+        if items.contains(where: { $0.page.retryable }) { await rescan() }
         for item in items {
             if case .blackShark(let model) = item.page, model.loaded, !model.busy, model.state.batteryPercent == nil {
                 await model.load()

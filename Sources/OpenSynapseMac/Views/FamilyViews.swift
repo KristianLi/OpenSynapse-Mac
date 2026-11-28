@@ -358,7 +358,7 @@ struct UnavailableView: View {
                 Card(title: L("原因", "Reason"), symbol: "exclamationmark.triangle") {
                     Text(device.reason).textSelection(.enabled)
                     if device.recognised {
-                        Text(L("请先退出其他可能占用设备的雷蛇控制程序，或在“设置”中切换通信方式后重新扫描。", "Quit other Razer software that may be using the device, or switch the connection in Settings, then rescan."))
+                        Text(L("请先退出其他可能占用设备的雷蛇控制程序，或在“设置”中切换通信方式后重新扫描。无线设备休眠时也会这样，唤醒后几秒内会自动重试。", "Quit other Razer software that may be using the device, or switch the connection in Settings, then rescan. A sleeping wireless device shows this too; it is retried automatically within seconds of waking."))
                             .font(.callout).foregroundStyle(.secondary)
                     } else {
                         Text(L("这个型号不在 OpenSynapse 的设备列表里。可以把下面的接口信息提交给上游项目，帮助适配。", "This model is not in OpenSynapse's device list. You can send the interface details below to the upstream project to help add it."))
